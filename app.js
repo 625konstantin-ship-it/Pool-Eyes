@@ -17,6 +17,8 @@ let measurements = [];
 let chemistryLog = [];
 let poolPhotos = [];
 let pendingChemistryPhoto = null;
+let pendingChemistryPhotoUrl = null;
+let savedChemistryPhotoUrl = null;
 let cameraStream = null;
 let selectedProblems = {};
 let charts = { ph: null, chlorine: null, temp: null };
@@ -543,6 +545,7 @@ async function setActivePool(poolId) {
   setChemistryHistoryOpen(false);
   setPoolEditMode(false);
   clearPendingChemistryPhoto();
+  clearSavedChemistryPhotoPreview();
 
   const select = document.getElementById('poolSelect');
   if (select && select.value !== pool.id) {
@@ -1501,7 +1504,24 @@ function syncVolumeSelect(volume) {
   isUpdatingUI = false;
 }
 
-function renderChemistryHistory(poolChem) {
+function getPoolPhotos(poolId) {
+  return poolPhotos.filter(p => p.poolId === poolId);
+}
+
+function findPhotoForChemistry(chemEntry, poolId) {
+  const chemTime = new Date(chemEntry.date).getTime();
+  const candidates = getPoolPhotos(poolId)
+    .map(photo => ({
+      photo,
+      delta: Math.abs(new Date(photo.date).getTime() - chemTime)
+    }))
+    .filter(item => item.delta < 120000)
+    .sort((a, b) => a.delta - b.delta);
+
+  return candidates[0]?.photo || null;
+}
+
+function renderChemistryHistory(poolChem, poolId) {
   const tbody = document.getElementById('chemistryBody');
   const empty = document.getElementById('emptyChemistry');
 
@@ -1518,39 +1538,111 @@ function renderChemistryHistory(poolChem) {
       hour: '2-digit', minute: '2-digit'
     });
     const comment = c.comment ? escapeHtml(c.comment) : '<span class="hint">—</span>';
-    return `<tr>
+    return `<tr data-chem-id="${escapeHtml(c.id)}">
       <td>${date}</td>
       <td>${escapeHtml(c.chemical)}</td>
       <td>${c.amount} ${escapeHtml(c.unit)}</td>
       <td class="comment-cell">${comment}</td>
+      <td class="chem-photo-cell"><span class="hint">…</span></td>
     </tr>`;
   }).join('');
+
+  loadChemistryPhotoThumbs(poolChem, poolId);
+}
+
+async function loadChemistryPhotoThumbs(poolChem, poolId) {
+  await Promise.all(poolChem.map(async chemEntry => {
+    const photo = findPhotoForChemistry(chemEntry, poolId);
+    const cell = document.querySelector(`tr[data-chem-id="${chemEntry.id}"] .chem-photo-cell`);
+    if (!cell) return;
+
+    if (!photo) {
+      cell.innerHTML = '<span class="hint">—</span>';
+      return;
+    }
+
+    try {
+      const url = await dbGetPhotoUrl(photo.storagePath);
+      cell.innerHTML = `<a href="${url}" class="chem-photo-link" target="_blank" rel="noopener noreferrer"><img src="${url}" class="chem-history-thumb" alt="Фото бассейна" loading="lazy"></a>`;
+    } catch {
+      cell.innerHTML = '<span class="hint">—</span>';
+    }
+  }));
+}
+
+function revokePendingChemistryPhotoUrl() {
+  if (pendingChemistryPhotoUrl) {
+    URL.revokeObjectURL(pendingChemistryPhotoUrl);
+    pendingChemistryPhotoUrl = null;
+  }
+}
+
+function revokeSavedChemistryPhotoUrl() {
+  if (savedChemistryPhotoUrl) {
+    URL.revokeObjectURL(savedChemistryPhotoUrl);
+    savedChemistryPhotoUrl = null;
+  }
+}
+
+function setPendingChemistryPhoto(file) {
+  revokePendingChemistryPhotoUrl();
+  revokeSavedChemistryPhotoUrl();
+  pendingChemistryPhoto = file || null;
+  pendingChemistryPhotoUrl = file ? URL.createObjectURL(file) : null;
+  updateChemistryPhotoUI();
 }
 
 function updateChemistryPhotoUI() {
   const btn = document.getElementById('chemistryPhotoBtn');
-  const status = document.getElementById('chemistryPhotoStatus');
-  if (!btn || !status) return;
+  const preview = document.getElementById('chemistryPhotoPreview');
+  const previewImg = document.getElementById('chemistryPhotoPreviewImg');
+  const previewLabel = document.getElementById('chemistryPhotoPreviewLabel');
+  const removeBtn = document.getElementById('chemistryPhotoRemoveBtn');
+  if (!btn || !preview || !previewImg || !previewLabel) return;
 
-  if (pendingChemistryPhoto) {
+  const previewUrl = pendingChemistryPhotoUrl || savedChemistryPhotoUrl;
+
+  if (previewUrl) {
     btn.classList.add('has-photo');
-    btn.title = 'Фото выбрано — нажмите «Сохранить запись»';
-    status.textContent = 'Фото готово';
-    status.classList.remove('hidden');
+    preview.classList.remove('hidden');
+    preview.classList.toggle('is-saved', !pendingChemistryPhoto && !!savedChemistryPhotoUrl);
+    previewImg.src = previewUrl;
+    previewLabel.textContent = pendingChemistryPhoto
+      ? 'Фото готово — нажмите «Сохранить запись»'
+      : 'Фото сохранено вместе с записью';
+    btn.title = pendingChemistryPhoto
+      ? 'Фото выбрано — нажмите «Сохранить запись»'
+      : 'Фото сохранено';
+    if (removeBtn) removeBtn.hidden = !pendingChemistryPhoto;
   } else {
     btn.classList.remove('has-photo');
+    preview.classList.add('hidden');
+    preview.classList.remove('is-saved');
+    previewImg.removeAttribute('src');
+    previewLabel.textContent = 'Фото готово — нажмите «Сохранить запись»';
     btn.title = 'Добавить фото бассейна';
-    status.textContent = '';
-    status.classList.add('hidden');
+    if (removeBtn) removeBtn.hidden = false;
   }
 }
 
 function clearPendingChemistryPhoto() {
   pendingChemistryPhoto = null;
+  revokePendingChemistryPhotoUrl();
   const galleryInput = document.getElementById('chemistryPhotoGalleryInput');
   const cameraInput = document.getElementById('chemistryPhotoCameraInput');
   if (galleryInput) galleryInput.value = '';
   if (cameraInput) cameraInput.value = '';
+  updateChemistryPhotoUI();
+}
+
+function clearSavedChemistryPhotoPreview() {
+  revokeSavedChemistryPhotoUrl();
+  updateChemistryPhotoUI();
+}
+
+function showSavedChemistryPhotoPreview(file) {
+  revokeSavedChemistryPhotoUrl();
+  savedChemistryPhotoUrl = URL.createObjectURL(file);
   updateChemistryPhotoUI();
 }
 
@@ -1559,8 +1651,7 @@ function handleChemistryPhotoSelected(e) {
   e.target.value = '';
   if (!file) return;
 
-  pendingChemistryPhoto = file;
-  updateChemistryPhotoUI();
+  setPendingChemistryPhoto(file);
 }
 
 function openPhotoSourceModal() {
@@ -1662,8 +1753,7 @@ function capturePhotoFromCamera() {
       alert('Не удалось сделать фото.');
       return;
     }
-    pendingChemistryPhoto = new File([blob], `pool-${Date.now()}.jpg`, { type: 'image/jpeg' });
-    updateChemistryPhotoUI();
+    setPendingChemistryPhoto(new File([blob], `pool-${Date.now()}.jpg`, { type: 'image/jpeg' }));
     closeCameraCapture();
   }, 'image/jpeg', 0.9);
 }
@@ -1697,7 +1787,7 @@ function renderPoolContent() {
   syncMeasurementLabels(treatmentType);
   syncPoolReminderUI(pool);
   renderLocationUI(pool);
-  renderChemistryHistory(poolChem);
+  renderChemistryHistory(poolChem, pool.id);
 
   if (poolMeas.length > 0) {
     const latest = poolMeas[0];
@@ -1970,6 +2060,7 @@ function initEventListeners() {
   document.getElementById('cancelPoolEditBtn')?.addEventListener('click', handleCancelPoolEdit);
 
   document.getElementById('chemistryPhotoBtn')?.addEventListener('click', openPhotoSourceModal);
+  document.getElementById('chemistryPhotoRemoveBtn')?.addEventListener('click', clearPendingChemistryPhoto);
   document.getElementById('chemistryPhotoGalleryInput')?.addEventListener('change', handleChemistryPhotoSelected);
   document.getElementById('chemistryPhotoCameraInput')?.addEventListener('change', handleChemistryPhotoSelected);
   document.getElementById('photoFromGalleryBtn')?.addEventListener('click', () => {
@@ -2066,16 +2157,19 @@ function initEventListeners() {
       chemistryLog.unshift(saved);
 
       const hadPhoto = !!pendingChemistryPhoto;
+      const photoFile = pendingChemistryPhoto;
       if (pendingChemistryPhoto) {
         const caption = `${chemical}, ${amount} ${unit}`;
         const photo = await dbUploadPhoto(currentUser.id, pool.id, pendingChemistryPhoto, caption);
         poolPhotos.unshift(photo);
         clearPendingChemistryPhoto();
+        if (photoFile) showSavedChemistryPhotoPreview(photoFile);
       }
 
       renderPoolContent();
       e.target.reset();
       document.getElementById('customChemicalWrap').classList.add('hidden');
+      if (hadPhoto) setChemistryHistoryOpen(true);
       showMessage(
         document.getElementById('selectorMessage'),
         hadPhoto ? 'Запись и фото сохранены!' : 'Запись о химии сохранена!'
