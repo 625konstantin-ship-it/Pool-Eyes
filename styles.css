@@ -598,6 +598,14 @@ td.comment-cell {
   margin: 0;
 }
 
+.telegram-settings-locked {
+  margin: 0;
+  padding: 10px 12px;
+  background: #f8fcff;
+  border-radius: 8px;
+  border: 1px dashed #b8d4e3;
+}
+
 .volume-row {
   display: flex;
   flex-wrap: wrap;

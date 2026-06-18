@@ -70,6 +70,8 @@ let mapInitRetries = 0;
 let measurementHistoryOpen = false;
 let pendingPasswordRecovery = false;
 let telegramSettings = null;
+let telegramConnectPending = false;
+let telegramPollTimer = null;
 const MAP_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const MAP_TILE_FALLBACK_URL = 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png';
 const LEAFLET_ICON_BASE = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/';
@@ -800,9 +802,10 @@ function renderTelegramRemindersUI() {
   }
 
   connectBtn?.classList.toggle('hidden', connected);
-  checkBtn?.classList.toggle('hidden', connected);
+  checkBtn?.classList.toggle('hidden', connected || !telegramConnectPending);
   disconnectBtn?.classList.toggle('hidden', !connected);
   form?.classList.toggle('hidden', !connected);
+  document.getElementById('telegramSettingsLocked')?.classList.toggle('hidden', connected);
 
   if (!connected || !telegramSettings) return;
 
@@ -830,11 +833,42 @@ async function handleConnectTelegram() {
   try {
     const { token } = await dbCreateTelegramLinkToken(currentUser.id);
     const url = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${token}`;
+    telegramConnectPending = true;
+    renderTelegramRemindersUI();
     window.open(url, '_blank', 'noopener,noreferrer');
-    showTelegramMessage('Откройте Telegram, нажмите Start. Затем «Проверить подключение».', 'info');
+    showTelegramMessage('1) В Telegram нажмите Start  2) Вернитесь сюда  3) «Проверить подключение»', 'info');
+    startTelegramConnectPoll();
   } catch (err) {
     showTelegramMessage(err.message || 'Ошибка создания ссылки', 'error');
   }
+}
+
+function stopTelegramConnectPoll() {
+  if (telegramPollTimer) {
+    clearInterval(telegramPollTimer);
+    telegramPollTimer = null;
+  }
+}
+
+function startTelegramConnectPoll() {
+  stopTelegramConnectPoll();
+  let attempts = 0;
+  telegramPollTimer = setInterval(async () => {
+    attempts++;
+    if (!currentUser || attempts > 20) {
+      stopTelegramConnectPoll();
+      return;
+    }
+    try {
+      telegramSettings = await dbGetTelegramSettings(currentUser.id);
+      if (telegramSettings?.telegramChatId) {
+        telegramConnectPending = false;
+        stopTelegramConnectPoll();
+        renderTelegramRemindersUI();
+        showTelegramMessage('Telegram подключён! Настройте интервал и включите напоминания.', 'success');
+      }
+    } catch { /* retry */ }
+  }, 3000);
 }
 
 async function handleCheckTelegram() {
@@ -843,6 +877,8 @@ async function handleCheckTelegram() {
     telegramSettings = await dbGetTelegramSettings(currentUser.id);
     renderTelegramRemindersUI();
     if (telegramSettings?.telegramChatId) {
+      telegramConnectPending = false;
+      stopTelegramConnectPoll();
       showTelegramMessage('Telegram подключён! Настройте интервал и включите напоминания.', 'success');
     } else {
       showTelegramMessage('Пока не подключено. Нажмите Start в боте.', 'warn');
