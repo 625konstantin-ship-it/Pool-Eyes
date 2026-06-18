@@ -196,22 +196,6 @@
       </section>
 
       <section class="card">
-        <h2>Фото бассейна</h2>
-        <p class="hint">Состояние воды, оборудование, тест-полоски. JPG или PNG, до 5 МБ. Фото хранятся в Supabase и видны с любого устройства.</p>
-        <div class="photo-upload">
-          <input type="file" id="photoInput" accept="image/jpeg,image/png,image/webp" capture="environment" hidden>
-          <button type="button" id="photoPickBtn" class="btn btn-primary">Добавить фото</button>
-          <div class="field photo-caption-field">
-            <label for="photoCaption">Подпись (необязательно)</label>
-            <input type="text" id="photoCaption" maxlength="120" placeholder="Например: мутная вода после дождя">
-          </div>
-        </div>
-        <p id="photoUploadStatus" class="hint photo-upload-status"></p>
-        <div id="photoGallery" class="photo-gallery"></div>
-        <p id="emptyPhotos" class="empty">Пока нет фото для этого бассейна.</p>
-      </section>
-
-      <section class="card">
         <h2>Новое измерение</h2>
         <form id="measurementForm">
           <div class="form-grid">
@@ -319,7 +303,18 @@
             <label for="chemicalComment">Комментарий (что заменено / сделано)</label>
             <textarea id="chemicalComment" rows="2" maxlength="500" placeholder="Например: заменён песок в фильтре, промыта сетка skimmer"></textarea>
           </div>
-          <button type="submit" class="btn btn-primary">Сохранить запись</button>
+          <div class="form-actions-row">
+            <button type="submit" class="btn btn-primary">Сохранить запись</button>
+            <input type="file" id="chemistryPhotoGalleryInput" accept="image/*" hidden>
+            <input type="file" id="chemistryPhotoCameraInput" accept="image/*" capture="environment" hidden>
+            <button type="button" id="chemistryPhotoBtn" class="photo-icon-btn" title="Добавить фото бассейна" aria-label="Добавить фото бассейна">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </button>
+            <span id="chemistryPhotoStatus" class="chemistry-photo-status hidden"></span>
+          </div>
         </form>
 
         <button type="button" id="toggleChemistryHistoryBtn" class="btn btn-secondary btn-full history-toggle-btn">
@@ -408,6 +403,38 @@
     <p id="noPoolHint" class="no-pool hidden">Выберите бассейн из списка или добавьте новый.</p>
   </div>
 
+  <div id="cameraCaptureModal" class="modal hidden" role="dialog" aria-labelledby="cameraCaptureTitle" aria-modal="true">
+    <div class="modal-backdrop" data-close-camera></div>
+    <div class="modal-content modal-content-wide">
+      <button type="button" class="modal-close" data-close-camera aria-label="Закрыть">&times;</button>
+      <h2 id="cameraCaptureTitle">Сделать фото</h2>
+      <p class="hint camera-capture-hint">Наведите камеру на бассейн и нажмите «Снять»</p>
+      <div class="camera-preview-wrap">
+        <video id="cameraPreview" autoplay playsinline muted></video>
+        <canvas id="cameraCanvas" hidden></canvas>
+        <p id="cameraError" class="message error hidden"></p>
+      </div>
+      <div class="modal-actions camera-actions">
+        <button type="button" id="capturePhotoBtn" class="btn btn-primary btn-full">Снять</button>
+        <button type="button" id="cameraFallbackBtn" class="btn btn-secondary btn-full hidden">Выбрать из файлов</button>
+        <button type="button" class="btn btn-secondary btn-full" data-close-camera>Отмена</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="photoSourceModal" class="modal hidden" role="dialog" aria-labelledby="photoSourceModalTitle" aria-modal="true">
+    <div class="modal-backdrop" data-close-photo-source></div>
+    <div class="modal-content">
+      <button type="button" class="modal-close" data-close-photo-source aria-label="Закрыть">&times;</button>
+      <h2 id="photoSourceModalTitle">Добавить фото</h2>
+      <p class="hint photo-source-hint">Выберите, откуда добавить фото бассейна</p>
+      <div class="modal-actions photo-source-actions">
+        <button type="button" id="photoFromGalleryBtn" class="btn btn-secondary btn-full">Из галереи</button>
+        <button type="button" id="photoFromCameraBtn" class="btn btn-primary btn-full">С камеры</button>
+      </div>
+    </div>
+  </div>
+
   <div id="addPoolModal" class="modal hidden" role="dialog" aria-labelledby="modalTitle" aria-modal="true">
     <div class="modal-backdrop" data-close-pool-modal></div>
     <div class="modal-content">
@@ -454,6 +481,6 @@
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.min.js"></script>
-  <script src="app.js?v=26"></script>
+  <script src="app.js?v=28"></script>
 </body>
 </html>

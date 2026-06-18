@@ -16,6 +16,8 @@ let activePoolId = null;
 let measurements = [];
 let chemistryLog = [];
 let poolPhotos = [];
+let pendingChemistryPhoto = null;
+let cameraStream = null;
 let selectedProblems = {};
 let charts = { ph: null, chlorine: null, temp: null };
 let isUpdatingUI = false;
@@ -540,6 +542,7 @@ async function setActivePool(poolId) {
   setMeasurementHistoryOpen(false);
   setChemistryHistoryOpen(false);
   setPoolEditMode(false);
+  clearPendingChemistryPhoto();
 
   const select = document.getElementById('poolSelect');
   if (select && select.value !== pool.id) {
@@ -1524,98 +1527,145 @@ function renderChemistryHistory(poolChem) {
   }).join('');
 }
 
-function getPoolPhotos(poolId) {
-  return poolPhotos.filter(p => p.poolId === poolId);
+function updateChemistryPhotoUI() {
+  const btn = document.getElementById('chemistryPhotoBtn');
+  const status = document.getElementById('chemistryPhotoStatus');
+  if (!btn || !status) return;
+
+  if (pendingChemistryPhoto) {
+    btn.classList.add('has-photo');
+    btn.title = 'Фото выбрано — нажмите «Сохранить запись»';
+    status.textContent = 'Фото готово';
+    status.classList.remove('hidden');
+  } else {
+    btn.classList.remove('has-photo');
+    btn.title = 'Добавить фото бассейна';
+    status.textContent = '';
+    status.classList.add('hidden');
+  }
 }
 
-async function renderPhotoGallery(poolId) {
-  const gallery = document.getElementById('photoGallery');
-  const empty = document.getElementById('emptyPhotos');
-  if (!gallery || !empty) return;
+function clearPendingChemistryPhoto() {
+  pendingChemistryPhoto = null;
+  const galleryInput = document.getElementById('chemistryPhotoGalleryInput');
+  const cameraInput = document.getElementById('chemistryPhotoCameraInput');
+  if (galleryInput) galleryInput.value = '';
+  if (cameraInput) cameraInput.value = '';
+  updateChemistryPhotoUI();
+}
 
-  const photos = getPoolPhotos(poolId);
-  if (photos.length === 0) {
-    gallery.innerHTML = '';
-    empty.hidden = false;
+function handleChemistryPhotoSelected(e) {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file) return;
+
+  pendingChemistryPhoto = file;
+  updateChemistryPhotoUI();
+}
+
+function openPhotoSourceModal() {
+  document.getElementById('photoSourceModal')?.classList.remove('hidden');
+}
+
+function closePhotoSourceModal() {
+  document.getElementById('photoSourceModal')?.classList.add('hidden');
+}
+
+function stopCameraStream() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(track => track.stop());
+    cameraStream = null;
+  }
+  const video = document.getElementById('cameraPreview');
+  if (video) video.srcObject = null;
+}
+
+function closeCameraCapture() {
+  stopCameraStream();
+  const modal = document.getElementById('cameraCaptureModal');
+  const errorEl = document.getElementById('cameraError');
+  const fallbackBtn = document.getElementById('cameraFallbackBtn');
+  if (modal) modal.classList.add('hidden');
+  if (errorEl) {
+    errorEl.hidden = true;
+    errorEl.textContent = '';
+  }
+  if (fallbackBtn) fallbackBtn.classList.add('hidden');
+}
+
+async function startCameraStream() {
+  stopCameraStream();
+  const video = document.getElementById('cameraPreview');
+  const errorEl = document.getElementById('cameraError');
+  const fallbackBtn = document.getElementById('cameraFallbackBtn');
+  if (!video) return;
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error('Камера недоступна в этом браузере');
+  }
+
+  if (errorEl) {
+    errorEl.hidden = true;
+    errorEl.textContent = '';
+  }
+  if (fallbackBtn) fallbackBtn.classList.add('hidden');
+
+  cameraStream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: 'environment' } },
+    audio: false
+  });
+
+  video.srcObject = cameraStream;
+  await video.play();
+}
+
+async function openCameraCapture() {
+  closePhotoSourceModal();
+  const modal = document.getElementById('cameraCaptureModal');
+  if (!modal) return;
+
+  modal.classList.remove('hidden');
+
+  try {
+    await startCameraStream();
+  } catch (err) {
+    console.error('Camera error:', err);
+    stopCameraStream();
+    const errorEl = document.getElementById('cameraError');
+    const fallbackBtn = document.getElementById('cameraFallbackBtn');
+    if (errorEl) {
+      errorEl.textContent = 'Не удалось включить камеру. Разрешите доступ или выберите файл.';
+      errorEl.hidden = false;
+    }
+    if (fallbackBtn) fallbackBtn.classList.remove('hidden');
+  }
+}
+
+function openCameraFileInput() {
+  document.getElementById('chemistryPhotoCameraInput')?.click();
+}
+
+function capturePhotoFromCamera() {
+  const video = document.getElementById('cameraPreview');
+  const canvas = document.getElementById('cameraCanvas');
+  if (!video || !canvas || !video.videoWidth) {
+    alert('Камера ещё не готова. Подождите секунду и попробуйте снова.');
     return;
   }
 
-  empty.hidden = true;
-  gallery.innerHTML = photos.map(p => {
-    const date = new Date(p.date).toLocaleString('ru-RU', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    });
-    const caption = p.caption ? escapeHtml(p.caption) : '';
-    return `
-      <figure class="photo-item" data-photo-id="${p.id}">
-        <div class="photo-thumb loading">Загрузка...</div>
-        <figcaption>
-          ${caption ? `<span class="photo-caption">${caption}</span>` : ''}
-          <span class="photo-date">${date}</span>
-        </figcaption>
-        <button type="button" class="photo-delete btn btn-danger btn-small" data-photo-id="${p.id}">Удалить</button>
-      </figure>`;
-  }).join('');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
 
-  await Promise.all(photos.map(async photo => {
-    try {
-      const url = await dbGetPhotoUrl(photo.storagePath);
-      const thumb = gallery.querySelector(`[data-photo-id="${photo.id}"] .photo-thumb`);
-      if (thumb) {
-        thumb.classList.remove('loading');
-        thumb.innerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer"><img src="${url}" alt="Фото бассейна" loading="lazy"></a>`;
-      }
-    } catch {
-      const thumb = gallery.querySelector(`[data-photo-id="${photo.id}"] .photo-thumb`);
-      if (thumb) {
-        thumb.classList.remove('loading');
-        thumb.textContent = 'Не удалось загрузить';
-      }
+  canvas.toBlob(blob => {
+    if (!blob) {
+      alert('Не удалось сделать фото.');
+      return;
     }
-  }));
-}
-
-async function handlePhotoSelected(e) {
-  const file = e.target.files?.[0];
-  e.target.value = '';
-  if (!file || !currentUser) return;
-
-  const pool = getActivePool();
-  if (!pool) return;
-
-  const statusEl = document.getElementById('photoUploadStatus');
-  const caption = document.getElementById('photoCaption')?.value || '';
-
-  if (statusEl) statusEl.textContent = 'Загрузка...';
-
-  try {
-    const saved = await dbUploadPhoto(currentUser.id, pool.id, file, caption);
-    poolPhotos.unshift(saved);
-    const captionInput = document.getElementById('photoCaption');
-    if (captionInput) captionInput.value = '';
-    await renderPhotoGallery(pool.id);
-    if (statusEl) statusEl.textContent = 'Фото сохранено!';
-    showMessage(document.getElementById('selectorMessage'), 'Фото добавлено!');
-  } catch (err) {
-    const msg = err.message || 'Ошибка загрузки фото';
-    if (statusEl) statusEl.textContent = msg;
-    alert(msg);
-  }
-}
-
-async function handleDeletePhoto(photoId) {
-  const photo = poolPhotos.find(p => p.id === photoId);
-  if (!photo || !confirm('Удалить это фото?')) return;
-
-  try {
-    await dbDeletePhoto(photo);
-    poolPhotos = poolPhotos.filter(p => p.id !== photoId);
-    await renderPhotoGallery(activePoolId);
-    showMessage(document.getElementById('selectorMessage'), 'Фото удалено.');
-  } catch (err) {
-    await handleDbError(err, 'deletePhoto');
-  }
+    pendingChemistryPhoto = new File([blob], `pool-${Date.now()}.jpg`, { type: 'image/jpeg' });
+    updateChemistryPhotoUI();
+    closeCameraCapture();
+  }, 'image/jpeg', 0.9);
 }
 
 function renderPoolContent() {
@@ -1648,7 +1698,6 @@ function renderPoolContent() {
   syncPoolReminderUI(pool);
   renderLocationUI(pool);
   renderChemistryHistory(poolChem);
-  renderPhotoGallery(pool.id);
 
   if (poolMeas.length > 0) {
     const latest = poolMeas[0];
@@ -1920,13 +1969,34 @@ function initEventListeners() {
   document.getElementById('savePoolSettingsBtn')?.addEventListener('click', handleSavePoolSettings);
   document.getElementById('cancelPoolEditBtn')?.addEventListener('click', handleCancelPoolEdit);
 
-  document.getElementById('photoPickBtn').addEventListener('click', () => {
-    document.getElementById('photoInput').click();
+  document.getElementById('chemistryPhotoBtn')?.addEventListener('click', openPhotoSourceModal);
+  document.getElementById('chemistryPhotoGalleryInput')?.addEventListener('change', handleChemistryPhotoSelected);
+  document.getElementById('chemistryPhotoCameraInput')?.addEventListener('change', handleChemistryPhotoSelected);
+  document.getElementById('photoFromGalleryBtn')?.addEventListener('click', () => {
+    document.getElementById('chemistryPhotoGalleryInput')?.click();
+    closePhotoSourceModal();
   });
-  document.getElementById('photoInput').addEventListener('change', handlePhotoSelected);
-  document.getElementById('photoGallery').addEventListener('click', e => {
-    const btn = e.target.closest('.photo-delete');
-    if (btn?.dataset.photoId) handleDeletePhoto(btn.dataset.photoId);
+  document.getElementById('photoFromCameraBtn')?.addEventListener('click', () => {
+    if (navigator.mediaDevices?.getUserMedia) {
+      openCameraCapture();
+      return;
+    }
+    document.getElementById('chemistryPhotoCameraInput')?.click();
+    closePhotoSourceModal();
+  });
+  document.getElementById('capturePhotoBtn')?.addEventListener('click', capturePhotoFromCamera);
+  document.getElementById('cameraFallbackBtn')?.addEventListener('click', () => {
+    closeCameraCapture();
+    openCameraFileInput();
+  });
+  document.querySelectorAll('[data-close-photo-source]').forEach(el => {
+    el.addEventListener('click', closePhotoSourceModal);
+  });
+  document.querySelectorAll('[data-close-camera]').forEach(el => {
+    el.addEventListener('click', closeCameraCapture);
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) closeCameraCapture();
   });
 
   document.getElementById('toggleMeasurementHistoryBtn').addEventListener('click', toggleMeasurementHistory);
@@ -1994,10 +2064,22 @@ function initEventListeners() {
     try {
       const saved = await dbInsertChemistry(currentUser.id, entry);
       chemistryLog.unshift(saved);
+
+      const hadPhoto = !!pendingChemistryPhoto;
+      if (pendingChemistryPhoto) {
+        const caption = `${chemical}, ${amount} ${unit}`;
+        const photo = await dbUploadPhoto(currentUser.id, pool.id, pendingChemistryPhoto, caption);
+        poolPhotos.unshift(photo);
+        clearPendingChemistryPhoto();
+      }
+
       renderPoolContent();
       e.target.reset();
       document.getElementById('customChemicalWrap').classList.add('hidden');
-      showMessage(document.getElementById('selectorMessage'), 'Запись о химии сохранена!');
+      showMessage(
+        document.getElementById('selectorMessage'),
+        hadPhoto ? 'Запись и фото сохранены!' : 'Запись о химии сохранена!'
+      );
     } catch (err) {
       await handleDbError(err, 'saveChemistry');
     }
