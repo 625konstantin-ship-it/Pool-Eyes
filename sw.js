@@ -1,11 +1,15 @@
-const CACHE = 'pool-eyes-v25';
+const CACHE = 'pool-eyes-v26';
 
 const SHELL = [
   './',
   './index.html',
   './problems.html',
+  './styles.css',
+  './app.js',
   './problems.js',
   './pool-problems.js',
+  './supabase-db.js',
+  './config.js',
   './i18n/i18n.js',
   './i18n/ru.js',
   './i18n/en.js',
@@ -17,11 +21,55 @@ const SHELL = [
   './icons/icon-512.png'
 ];
 
+async function openCache() {
+  return caches.open(CACHE);
+}
+
+function stripSearch(url) {
+  const clean = new URL(url);
+  clean.search = '';
+  return clean.toString();
+}
+
+async function matchCached(request) {
+  const cache = await openCache();
+  const direct = await cache.match(request);
+  if (direct) return direct;
+
+  const noSearch = await cache.match(stripSearch(request.url));
+  if (noSearch) return noSearch;
+
+  const url = new URL(request.url);
+  const basePath = url.pathname.replace(/\/[^/]*$/, '/');
+  const fileName = url.pathname.split('/').pop();
+  if (fileName) {
+    const relative = await cache.match('./' + fileName);
+    if (relative) return relative;
+    const nested = await cache.match(basePath + fileName);
+    if (nested) return nested;
+  }
+
+  return null;
+}
+
+async function precacheAssets(urls) {
+  const cache = await openCache();
+  await Promise.all(urls.map(async url => {
+    try {
+      const response = await fetch(url, { cache: 'no-cache' });
+      if (response.ok) {
+        await cache.put(url, response.clone());
+        await cache.put(stripSearch(url), response.clone());
+      }
+    } catch (err) {
+      console.warn('[sw] precache skip', url, err);
+    }
+  }));
+}
+
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE)
-      .then(cache => cache.addAll(SHELL))
-      .then(() => self.skipWaiting())
+    precacheAssets(SHELL).then(() => self.skipWaiting())
   );
 });
 
@@ -43,6 +91,23 @@ function isNavigationRequest(request) {
     || (request.method === 'GET' && request.headers.get('accept')?.includes('text/html'));
 }
 
+async function respondFromNetworkThenCache(request) {
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      const cache = await openCache();
+      const copy = response.clone();
+      cache.put(request, copy);
+      cache.put(stripSearch(request.url), copy);
+    }
+    return response;
+  } catch {
+    const cached = await matchCached(request);
+    if (cached) return cached;
+    throw new Error('offline');
+  }
+}
+
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
@@ -51,28 +116,20 @@ self.addEventListener('fetch', event => {
 
   if (isNavigationRequest(event.request)) {
     event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE).then(cache => cache.put(event.request, copy));
-          }
-          return response;
-        })
-        .catch(() => caches.match('./index.html'))
+      respondFromNetworkThenCache(event.request).catch(async () => {
+        const cached = await matchCached(event.request);
+        if (cached) return cached;
+        if (url.pathname.includes('problems')) {
+          const problems = await caches.match('./problems.html');
+          if (problems) return problems;
+        }
+        return caches.match('./index.html');
+      })
     );
     return;
   }
 
   event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE).then(cache => cache.put(event.request, copy));
-        }
-        return response;
-      })
-      .catch(() => caches.match(event.request))
+    respondFromNetworkThenCache(event.request).catch(() => matchCached(event.request))
   );
 });

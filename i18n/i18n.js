@@ -168,6 +168,14 @@ function initI18n() {
       });
     });
   });
+
+  window.addEventListener('pageshow', () => {
+    currentLang = getStoredLang();
+    document.documentElement.lang = currentLang;
+    applyTranslations();
+    updateLangSwitcherUI();
+    window.dispatchEvent(new CustomEvent('languagechange', { detail: { lang: currentLang } }));
+  });
 }
 
 const CHEMICAL_I18N_KEYS = {
