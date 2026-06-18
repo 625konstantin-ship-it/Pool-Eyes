@@ -376,14 +376,16 @@ td.comment-cell {
   color: #4a6a7a;
 }
 
-.location-card {
-  padding: 14px 18px;
+.pool-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.location-compact {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
+.pool-title-row h2 {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .location-icon-btn {
@@ -391,8 +393,8 @@ td.comment-cell {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   border: 2px solid #d8eaf4;
   border-radius: 10px;
@@ -413,46 +415,44 @@ td.comment-cell {
   color: #fff;
 }
 
-.location-compact-info {
-  flex: 1;
-  min-width: 0;
-  padding-top: 2px;
-}
-
-.location-summary-text {
-  margin: 0 0 4px;
-  font-size: 0.92rem;
-  font-weight: 600;
+.pool-location-line {
+  margin: 6px 0 0;
+  font-size: 0.88rem;
+  font-weight: 500;
   color: #0d4a6b;
   word-break: break-word;
+  cursor: pointer;
 }
 
-.location-summary-text.muted {
-  font-weight: 500;
+.pool-location-line.muted {
   color: #6a8a9a;
 }
 
-.location-compact-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-}
-
-.location-route-link {
+.pool-location-route {
+  display: inline-block;
+  margin-top: 6px;
   font-size: 0.88rem;
+  font-weight: 600;
+  color: #1a8fc7;
+  text-decoration: none;
 }
 
-.location-details-panel {
+.pool-location-route:hover {
+  color: #1578ab;
+  text-decoration: underline;
+}
+
+.location-popover {
   margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid #e0eef4;
+  padding: 14px;
+  border-radius: 10px;
+  border: 2px solid #d8eaf4;
+  background: #f8fcff;
+  box-shadow: 0 8px 24px rgba(13, 74, 107, 0.1);
 }
 
-.location-panel-title {
-  margin: 0 0 8px;
-  font-size: 1.1rem;
-  color: #0d4a6b;
+.location-popover-hint {
+  margin: 0 0 12px;
 }
 
 .pool-map {
@@ -611,6 +611,9 @@ td.comment-cell {
   flex-direction: column;
   gap: 8px;
   align-items: flex-start;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e0eef4;
 }
 
 .pool-info-line {

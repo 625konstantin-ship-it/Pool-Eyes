@@ -910,7 +910,7 @@ function startTelegramConnectPoll() {
         stopTelegramConnectPoll();
         renderTelegramRemindersUI();
         syncPoolReminderUI(getActivePool());
-        showTelegramMessage('Telegram подключён! Включите напоминания в карточке каждого бассейна.', 'success');
+        showTelegramMessage('Telegram подключён! Настройте напоминания ниже.', 'success');
       }
     } catch { /* retry */ }
   }, 3000);
@@ -924,7 +924,7 @@ async function handleCheckTelegram() {
     if (telegramSettings?.telegramChatId) {
       telegramConnectPending = false;
       stopTelegramConnectPoll();
-      showTelegramMessage('Telegram подключён! Включите напоминания в карточке каждого бассейна.', 'success');
+      showTelegramMessage('Telegram подключён! Настройте напоминания ниже.', 'success');
       syncPoolReminderUI(getActivePool());
     } else {
       showTelegramMessage('Пока не подключено. Нажмите Start в боте.', 'warn');
@@ -943,6 +943,7 @@ async function handleDisconnectTelegram() {
       clearLinkToken: true
     });
     renderTelegramRemindersUI();
+    syncPoolReminderUI(getActivePool());
     showTelegramMessage('Telegram отключён.', 'success');
   } catch (err) {
     showTelegramMessage(err.message || 'Ошибка отключения', 'error');
@@ -1023,13 +1024,16 @@ function handleCancelPoolEdit() {
 }
 
 function syncPoolReminderUI(pool) {
-  const block = document.getElementById('poolReminderBlock');
+  const section = document.getElementById('poolReminderSection');
   const options = document.getElementById('poolReminderOptions');
+  const nameEl = document.getElementById('poolReminderPoolName');
   const telegramConnected = !!telegramSettings?.telegramChatId;
 
-  if (!block) return;
+  if (nameEl) nameEl.textContent = pool?.name || '—';
 
-  block.classList.toggle('hidden', !telegramConnected || !pool);
+  if (!section) return;
+
+  section.classList.toggle('hidden', !telegramConnected || !pool);
 
   if (!pool || !telegramConnected) return;
 
@@ -1091,9 +1095,6 @@ function formatPoolMeta(pool, poolMeas, poolChem, treatmentType) {
     `Измерений: ${poolMeas.length}`,
     `Записей химии: ${poolChem.length}`
   ];
-  if (pool.location && pool.location.address) {
-    parts.push(`📍 ${pool.location.address}`);
-  }
   return parts.join(' · ');
 }
 
@@ -1262,7 +1263,6 @@ function syncRouteFromPool(pool) {
 function updateLocationSummary(pool) {
   const el = document.getElementById('locationSummaryText');
   const btn = document.getElementById('toggleLocationBtn');
-  const openLink = document.getElementById('openLocationPanelBtn');
   if (!el) return;
 
   const loc = pool?.location || normalizeLocation(null);
@@ -1282,16 +1282,12 @@ function updateLocationSummary(pool) {
     btn.classList.toggle('is-open', locationPanelOpen);
     btn.title = locationPanelOpen ? 'Скрыть карту' : 'Локация бассейна';
   }
-
-  if (openLink) {
-    openLink.textContent = locationPanelOpen ? 'Скрыть карту' : (loc.address || loc.lat != null ? 'Изменить' : 'Указать на карте');
-  }
 }
 
 function setLocationPanelOpen(open) {
   locationPanelOpen = open;
-  const panel = document.getElementById('locationDetailsPanel');
-  if (panel) panel.classList.toggle('hidden', !open);
+  const popover = document.getElementById('locationPopover');
+  if (popover) popover.classList.toggle('hidden', !open);
 
   const pool = getActivePool();
   if (open && pool) {
@@ -2145,10 +2141,7 @@ function initEventListeners() {
   document.getElementById('exportPdfBtn').addEventListener('click', handleExportPdf);
 
   document.getElementById('toggleLocationBtn')?.addEventListener('click', toggleLocationPanel);
-  document.getElementById('openLocationPanelBtn')?.addEventListener('click', () => {
-    if (!locationPanelOpen) setLocationPanelOpen(true);
-    else setLocationPanelOpen(false);
-  });
+  document.getElementById('locationSummaryText')?.addEventListener('click', toggleLocationPanel);
 
   document.getElementById('geocodeBtn').addEventListener('click', async () => {
     const address = document.getElementById('poolAddress').value.trim();
@@ -2244,7 +2237,38 @@ document.addEventListener('DOMContentLoaded', init);
 
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
+
+  let refreshing = false;
+  let swRegistration = null;
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
+  });
+
+  const checkForSwUpdate = () => swRegistration?.update().catch(() => {});
+
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+    navigator.serviceWorker.register('./sw.js?v=20')
+      .then(reg => {
+        swRegistration = reg;
+        if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+
+        reg.addEventListener('updatefound', () => {
+          const worker = reg.installing;
+          if (!worker) return;
+          worker.addEventListener('statechange', () => {
+            if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+              worker.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        });
+      })
+      .catch(() => {});
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) checkForSwUpdate();
   });
 }

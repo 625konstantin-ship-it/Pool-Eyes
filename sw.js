@@ -1,12 +1,8 @@
-const CACHE = 'pool-eyes-v2';
+const CACHE = 'pool-eyes-v20';
 
 const SHELL = [
   './',
   './index.html',
-  './styles.css',
-  './app.js',
-  './config.js',
-  './supabase-db.js',
   './manifest.webmanifest',
   './icons/icon-180.png',
   './icons/icon-192.png',
@@ -21,6 +17,10 @@ self.addEventListener('install', event => {
   );
 });
 
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
@@ -29,11 +29,32 @@ self.addEventListener('activate', event => {
   );
 });
 
+function isNavigationRequest(request) {
+  return request.mode === 'navigate'
+    || request.destination === 'document'
+    || (request.method === 'GET' && request.headers.get('accept')?.includes('text/html'));
+}
+
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
+
+  if (isNavigationRequest(event.request)) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE).then(cache => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
 
   event.respondWith(
     fetch(event.request)
@@ -44,6 +65,6 @@ self.addEventListener('fetch', event => {
         }
         return response;
       })
-      .catch(() => caches.match(event.request).then(cached => cached || caches.match('./index.html')))
+      .catch(() => caches.match(event.request))
   );
 });
