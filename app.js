@@ -24,6 +24,7 @@ let poolMarker = null;
 let lastMapPoolId = null;
 let mapInitRetries = 0;
 let measurementHistoryOpen = false;
+let chemistryHistoryOpen = false;
 let pendingPasswordRecovery = false;
 let telegramSettings = null;
 let telegramConnectPending = false;
@@ -447,6 +448,7 @@ async function handleLogout() {
   poolPhotos = [];
   selectedProblems = {};
   measurementHistoryOpen = false;
+  chemistryHistoryOpen = false;
   telegramSettings = null;
   telegramPanelOpen = false;
   locationPanelOpen = false;
@@ -498,6 +500,21 @@ function toggleMeasurementHistory() {
   setMeasurementHistoryOpen(!measurementHistoryOpen);
 }
 
+function setChemistryHistoryOpen(open) {
+  chemistryHistoryOpen = open;
+  const panel = document.getElementById('chemistryHistoryPanel');
+  const btn = document.getElementById('toggleChemistryHistoryBtn');
+  if (!panel || !btn) return;
+
+  panel.classList.toggle('hidden', !open);
+  btn.textContent = open ? 'Скрыть историю химии' : 'История добавленной химии';
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function toggleChemistryHistory() {
+  setChemistryHistoryOpen(!chemistryHistoryOpen);
+}
+
 async function startApp() {
   try {
     await loadUserData();
@@ -521,6 +538,7 @@ async function setActivePool(poolId) {
   activePoolId = pool.id;
   saveActivePoolId();
   setMeasurementHistoryOpen(false);
+  setChemistryHistoryOpen(false);
   setPoolEditMode(false);
 
   const select = document.getElementById('poolSelect');
@@ -721,7 +739,7 @@ function updateTelegramToggleButton() {
   if (!btn) return;
 
   if (telegramPanelOpen) {
-    btn.textContent = 'Скрыть Telegram-напоминания';
+    btn.textContent = 'Скрыть настройки напоминаний';
     btn.setAttribute('aria-expanded', 'true');
     return;
   }
@@ -730,11 +748,11 @@ function updateTelegramToggleButton() {
   const enabledPools = poolList.filter(p => p.remindersEnabled).length;
   if (telegramSettings?.telegramChatId && enabledPools > 0) {
     const h = String(telegramSettings.reminderHour).padStart(2, '0');
-    btn.textContent = `Telegram • ${enabledPools} басс. • ${h}:00`;
+    btn.textContent = `Напоминания • ${enabledPools} басс. • ${h}:00`;
   } else if (telegramSettings?.telegramChatId) {
-    btn.textContent = 'Telegram • подключён';
+    btn.textContent = 'Напоминания • Telegram подключён';
   } else {
-    btn.textContent = 'Telegram-напоминания';
+    btn.textContent = 'Настроить напоминания';
   }
 }
 
@@ -1735,7 +1753,7 @@ function updateChart(key, data, labels, label, color, normMin, normMax) {
   });
 }
 
-function openModal() {
+function openPoolModal() {
   document.getElementById('addPoolModal').classList.remove('hidden');
   document.getElementById('newPoolName').value = '';
   document.getElementById('newPoolVolume').value = '25000';
@@ -1746,7 +1764,7 @@ function openModal() {
   document.getElementById('newPoolName').focus();
 }
 
-function closeModal() {
+function closePoolModal() {
   document.getElementById('addPoolModal').classList.add('hidden');
 }
 
@@ -1803,15 +1821,15 @@ function initEventListeners() {
     }
   });
 
-  document.getElementById('addPoolBtn').addEventListener('click', openModal);
+  document.getElementById('addPoolBtn').addEventListener('click', openPoolModal);
 
-  document.querySelectorAll('[data-close-modal]').forEach(el => {
-    el.addEventListener('click', closeModal);
+  document.querySelectorAll('[data-close-pool-modal]').forEach(el => {
+    el.addEventListener('click', closePoolModal);
   });
 
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
-      closeModal();
+      closePoolModal();
       closeUserMenu();
     }
   });
@@ -1857,7 +1875,7 @@ function initEventListeners() {
       await dbUpsertPool(currentUser.id, pool, []);
       poolList.push(pool);
       selectedProblems[pool.id] = [];
-      closeModal();
+      closePoolModal();
       renderPoolSelect();
       await setActivePool(pool.id);
       showMessage(document.getElementById('selectorMessage'), `Бассейн «${name}» добавлен!`);
@@ -1912,6 +1930,7 @@ function initEventListeners() {
   });
 
   document.getElementById('toggleMeasurementHistoryBtn').addEventListener('click', toggleMeasurementHistory);
+  document.getElementById('toggleChemistryHistoryBtn')?.addEventListener('click', toggleChemistryHistory);
 
   document.getElementById('measurementForm').addEventListener('submit', async e => {
     e.preventDefault();

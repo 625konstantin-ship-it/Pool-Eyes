@@ -13,7 +13,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=2">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=2">
   <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png?v=2">
-  <link rel="stylesheet" href="styles.css?v=23">
+  <link rel="stylesheet" href="styles.css?v=26">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
@@ -267,6 +267,12 @@
       </section>
 
       <section class="card">
+        <h2>Рекомендации по воде</h2>
+        <p class="hint">Советы по pH, хлору и температуре на основе последнего измерения.</p>
+        <div id="paramRecommendations" class="recommendations"></div>
+      </section>
+
+      <section class="card">
         <h2>Добавление химии</h2>
         <p class="hint">Запишите, какую химию и в каком количестве вы добавили, а также что меняли на бассейне.</p>
         <form id="chemistryForm">
@@ -315,11 +321,38 @@
           </div>
           <button type="submit" class="btn btn-primary">Сохранить запись</button>
         </form>
+
+        <button type="button" id="toggleChemistryHistoryBtn" class="btn btn-secondary btn-full history-toggle-btn">
+          История добавленной химии
+        </button>
+
+        <div id="chemistryHistoryPanel" class="chemistry-history-panel hidden">
+          <div class="history-header">
+            <h3 class="subsection-title">Что добавляли</h3>
+            <button type="button" id="clearChemistryBtn" class="btn btn-danger btn-small">Очистить</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Химия</th>
+                  <th>Кол-во</th>
+                  <th>Комментарий</th>
+                </tr>
+              </thead>
+              <tbody id="chemistryBody"></tbody>
+            </table>
+          </div>
+          <p id="emptyChemistry" class="empty">Пока нет записей о химии для этого бассейна.</p>
+        </div>
       </section>
 
       <section class="card telegram-reminders" id="telegramRemindersCard">
+        <h2>Напоминания в Telegram</h2>
+        <p class="hint telegram-section-hint">Напоминания об измерениях и добавлении химии — в мессенджер.</p>
         <button type="button" id="toggleTelegramBtn" class="btn btn-secondary btn-full telegram-toggle-btn" aria-expanded="false">
-          Telegram-напоминания
+          Настроить напоминания
         </button>
         <div id="telegramDetailsPanel" class="telegram-details-panel hidden">
           <p class="hint telegram-intro-hint">Подключите Telegram один раз. Ниже настройте напоминания для бассейна <strong id="poolReminderPoolName">—</strong>.</p>
@@ -365,36 +398,10 @@
         </div>
       </section>
 
-      <section class="card">
-        <div class="history-header">
-          <h2>История химии и работ</h2>
-          <button type="button" id="clearChemistryBtn" class="btn btn-danger btn-small">Очистить</button>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Дата</th>
-                <th>Химия</th>
-                <th>Кол-во</th>
-                <th>Комментарий</th>
-              </tr>
-            </thead>
-            <tbody id="chemistryBody"></tbody>
-          </table>
-        </div>
-        <p id="emptyChemistry" class="empty">Пока нет записей о химии для этого бассейна.</p>
-      </section>
-
       <section class="card problems-entry-card">
         <h2>Проблемы с водой</h2>
         <p class="hint">Если вода мутная, зелёная или есть другие симптомы — откройте раздел с рекомендациями.</p>
         <a href="problems.html" class="btn btn-danger btn-full btn-problem">Проблема</a>
-      </section>
-
-      <section class="card">
-        <h2>Рекомендации по параметрам</h2>
-        <div id="paramRecommendations" class="recommendations"></div>
       </section>
     </div>
 
@@ -402,9 +409,9 @@
   </div>
 
   <div id="addPoolModal" class="modal hidden" role="dialog" aria-labelledby="modalTitle" aria-modal="true">
-    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-backdrop" data-close-pool-modal></div>
     <div class="modal-content">
-      <button type="button" class="modal-close" data-close-modal aria-label="Закрыть">&times;</button>
+      <button type="button" class="modal-close" data-close-pool-modal aria-label="Закрыть">&times;</button>
       <h2 id="modalTitle">Новый бассейн</h2>
       <form id="addPoolForm">
         <div class="field">
@@ -434,7 +441,7 @@
         <p id="modalError" class="message error" hidden></p>
         <div class="modal-actions">
           <button type="submit" class="btn btn-primary">Добавить</button>
-          <button type="button" class="btn btn-secondary" data-close-modal>Отмена</button>
+          <button type="button" class="btn btn-secondary" data-close-pool-modal>Отмена</button>
         </div>
       </form>
     </div>
@@ -447,6 +454,6 @@
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.min.js"></script>
-  <script src="app.js?v=23"></script>
+  <script src="app.js?v=26"></script>
 </body>
 </html>

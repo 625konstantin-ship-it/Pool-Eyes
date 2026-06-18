@@ -1017,7 +1017,8 @@ td.comment-cell {
   margin-top: 14px;
 }
 
-.measurement-history-panel {
+.measurement-history-panel,
+.chemistry-history-panel {
   margin-top: 18px;
   padding-top: 18px;
   border-top: 1px solid #e0eef4;
@@ -1029,12 +1030,14 @@ td.comment-cell {
   margin-bottom: 10px;
 }
 
-.measurement-history-panel .history-header {
+.measurement-history-panel .history-header,
+.chemistry-history-panel .history-header {
   margin-top: 20px;
   margin-bottom: 10px;
 }
 
-.measurement-history-panel .history-header .subsection-title {
+.measurement-history-panel .history-header .subsection-title,
+.chemistry-history-panel .history-header .subsection-title {
   margin-bottom: 0;
 }
 
@@ -1190,6 +1193,23 @@ th {
   position: absolute;
   inset: 0;
   background: rgba(13, 40, 60, 0.5);
+}
+
+.modal-content-wide {
+  max-width: 520px;
+}
+
+.chemistry-modal-hint {
+  margin-top: -4px;
+  margin-bottom: 14px;
+}
+
+.telegram-section-hint {
+  margin-bottom: 12px;
+}
+
+.chemistry-history-actions {
+  margin-top: 12px;
 }
 
 .modal-content {
