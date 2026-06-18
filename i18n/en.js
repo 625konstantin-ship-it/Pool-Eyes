@@ -1,9 +1,8 @@
 const I18N_EN = {
-  'app.shortTitle': 'Pool',
-  'app.title': 'Pool Parameter Tracker',
-  'app.subtitle': 'Monitor pH, chlorine, temperature and water condition',
-  'app.pageTitle': 'Pool',
-  'problems.pageTitle': 'Water Problems — Pool',
+  'app.shortTitle': 'Pool Eyes',
+  'app.subtitle': 'Pool parameter control',
+  'app.pageTitle': 'Pool Eyes',
+  'problems.pageTitle': 'Water Problems — Pool Eyes',
 
   'lang.label': 'Language',
   'lang.ru': 'RU',

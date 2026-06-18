@@ -228,10 +228,10 @@ async function handleChangePassword() {
 }
 
 function resetAuthCardHeader() {
-  const title = document.querySelector('.auth-card h1');
-  const subtitle = document.querySelector('.auth-card .subtitle');
-  if (title) title.textContent = t('app.title');
-  if (subtitle) subtitle.textContent = t('auth.subtitle');
+  document.getElementById('authBrandHeader')?.classList.remove('hidden');
+  document.getElementById('authFormHeader')?.classList.add('hidden');
+  const subtitle = document.getElementById('authSubtitle');
+  if (subtitle) subtitle.textContent = t('app.subtitle');
 }
 
 function showPasswordResetScreen() {
@@ -242,10 +242,8 @@ function showPasswordResetScreen() {
   document.getElementById('forgotForm')?.classList.add('hidden');
   document.getElementById('newPasswordForm')?.classList.remove('hidden');
 
-  const title = document.querySelector('.auth-card h1');
-  const subtitle = document.querySelector('.auth-card .subtitle');
-  if (title) title.textContent = t('auth.newPasswordTitle');
-  if (subtitle) subtitle.textContent = t('auth.newPasswordSubtitle');
+  document.getElementById('authBrandHeader')?.classList.add('hidden');
+  document.getElementById('authFormHeader')?.classList.remove('hidden');
 
   hideAuthMessages(['newPasswordError', 'newPasswordSuccess']);
   showAuthScreen();
@@ -2468,10 +2466,8 @@ function handleLanguageChange() {
   applyTranslations();
   resetAuthCardHeader();
   if (pendingPasswordRecovery) {
-    const title = document.querySelector('.auth-card h1');
-    const subtitle = document.querySelector('.auth-card .subtitle');
-    if (title) title.textContent = t('auth.newPasswordTitle');
-    if (subtitle) subtitle.textContent = t('auth.newPasswordSubtitle');
+    document.getElementById('authBrandHeader')?.classList.add('hidden');
+    document.getElementById('authFormHeader')?.classList.remove('hidden');
   }
   if (currentUser) {
     renderPoolSelect();

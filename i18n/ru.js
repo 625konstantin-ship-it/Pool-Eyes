@@ -1,9 +1,8 @@
 const I18N_RU = {
-  'app.shortTitle': 'Бассейн',
-  'app.title': 'Учёт параметров бассейна',
-  'app.subtitle': 'Контроль pH, хлора, температуры и состояния воды',
-  'app.pageTitle': 'Бассейн',
-  'problems.pageTitle': 'Проблемы с водой — Бассейн',
+  'app.shortTitle': 'Pool Eyes',
+  'app.subtitle': 'Контроль параметров бассейна',
+  'app.pageTitle': 'Pool Eyes',
+  'problems.pageTitle': 'Проблемы с водой — Pool Eyes',
 
   'lang.label': 'Язык',
   'lang.ru': 'RU',

@@ -1,9 +1,8 @@
 const I18N_ES = {
-  'app.shortTitle': 'Piscina',
-  'app.title': 'Control de parámetros de piscina',
-  'app.subtitle': 'Monitoreo de pH, cloro, temperatura y estado del agua',
-  'app.pageTitle': 'Piscina',
-  'problems.pageTitle': 'Problemas del agua — Piscina',
+  'app.shortTitle': 'Pool Eyes',
+  'app.subtitle': 'Control de parámetros de piscina',
+  'app.pageTitle': 'Pool Eyes',
+  'problems.pageTitle': 'Problemas del agua — Pool Eyes',
 
   'lang.label': 'Idioma',
   'lang.ru': 'RU',
