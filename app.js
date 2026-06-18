@@ -1,15 +1,3 @@
-const STORAGE_KEYS = {
-  users: 'poolApp_users',
-  session: 'poolApp_session'
-};
-
-const LEGACY_KEYS = {
-  pools: 'poolList',
-  activePool: 'activePoolId',
-  measurements: 'poolMeasurements',
-  problems: 'poolProblems'
-};
-
 const NORMS = {
   ph: { min: 7.2, max: 7.6, ideal: '7.2–7.6' },
   chlorine: { min: 1.0, max: 3.0, ideal: '1.0–3.0 мг/л' },
@@ -77,31 +65,24 @@ let isUpdatingUI = false;
 let poolMap = null;
 let poolMarker = null;
 let lastMapPoolId = null;
-const memoryStorage = {};
+let mapInitRetries = 0;
+const MAP_TILE_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+const LEAFLET_ICON_BASE = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/';
 const DEFAULT_MAP_CENTER = [50.4501, 30.5234];
 const NOMINATIM_HEADERS = { 'Accept-Language': 'ru', 'User-Agent': 'PoolTracker/1.0 (local pool app)' };
 
 function storageGet(key) {
   try { return localStorage.getItem(key); }
-  catch { return memoryStorage[key] ?? null; }
+  catch { return null; }
 }
 
 function storageSet(key, value) {
   try { localStorage.setItem(key, value); }
-  catch { memoryStorage[key] = value; }
-}
-
-function storageRemove(key) {
-  try { localStorage.removeItem(key); }
-  catch { delete memoryStorage[key]; }
-}
-
-function getUserDataKey(userId) {
-  return `poolApp_data_${userId}`;
+  catch { /* ignore */ }
 }
 
 function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  return crypto.randomUUID();
 }
 
 function escapeHtml(text) {
@@ -112,424 +93,61 @@ function escapeHtml(text) {
     .replace(/"/g, '&quot;');
 }
 
-let useServerAuth = false;
-
-async function digestSHA256(text) {
-  if (window.crypto && window.crypto.subtle) {
-    try {
-      const data = new TextEncoder().encode(text);
-      const hash = await crypto.subtle.digest('SHA-256', data);
-      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
-    } catch { /* fallback below */ }
-  }
-  return sha256Fallback(text);
+function activePoolKey() {
+  return currentUser ? `activePool_${currentUser.id}` : null;
 }
 
-function sha256Fallback(text) {
-  const K = [
-    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
-  ];
-  let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
-  let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
-  const bytes = new TextEncoder().encode(text);
-  const bitLen = bytes.length * 8;
-  const withOne = bytes.length + 1;
-  const padLen = (withOne % 64 <= 56 ? 56 : 120) - (withOne % 64);
-  const total = withOne + padLen + 8;
-  const buf = new Uint8Array(total);
-  buf.set(bytes);
-  buf[bytes.length] = 0x80;
-  new DataView(buf.buffer).setUint32(total - 4, bitLen);
-  const w = new Uint32Array(64);
-  for (let i = 0; i < total; i += 64) {
-    for (let j = 0; j < 16; j++) {
-      w[j] = (buf[i + j * 4] << 24) | (buf[i + j * 4 + 1] << 16) | (buf[i + j * 4 + 2] << 8) | buf[i + j * 4 + 3];
-    }
-    for (let j = 16; j < 64; j++) {
-      const s0 = ((w[j - 15] >>> 7) | (w[j - 15] << 25)) ^ ((w[j - 15] >>> 18) | (w[j - 15] << 14)) ^ (w[j - 15] >>> 3);
-      const s1 = ((w[j - 2] >>> 17) | (w[j - 2] << 15)) ^ ((w[j - 2] >>> 19) | (w[j - 2] << 13)) ^ (w[j - 2] >>> 10);
-      w[j] = (w[j - 16] + s0 + w[j - 7] + s1) | 0;
-    }
-    let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, hh = h7;
-    for (let j = 0; j < 64; j++) {
-      const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
-      const ch = (e & f) ^ (~e & g);
-      const t1 = (hh + S1 + ch + K[j] + w[j]) | 0;
-      const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
-      const maj = (a & b) ^ (a & c) ^ (b & c);
-      const t2 = (S0 + maj) | 0;
-      hh = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
-    }
-    h0 = (h0 + a) | 0; h1 = (h1 + b) | 0; h2 = (h2 + c) | 0; h3 = (h3 + d) | 0;
-    h4 = (h4 + e) | 0; h5 = (h5 + f) | 0; h6 = (h6 + g) | 0; h7 = (h7 + hh) | 0;
-  }
-  return [h0, h1, h2, h3, h4, h5, h6, h7].map(v => (v >>> 0).toString(16).padStart(8, '0')).join('');
+function saveActivePoolId() {
+  const key = activePoolKey();
+  if (key && activePoolId) storageSet(key, activePoolId);
 }
 
-async function hashPassword(password, salt) {
-  return digestSHA256((salt || '') + password);
-}
-
-function findUserByLogin(login) {
-  const normalized = normalizeLogin(login);
-  const users = getUsers();
-  return users.find(u => u.login === normalized)
-    || users.find(u => u.displayLogin && normalizeLogin(u.displayLogin) === normalized)
-    || null;
-}
-
-async function verifyPassword(password, user) {
-  if (!user || !user.passwordHash) return false;
-  const salt = user.salt || '';
-  const primary = await hashPassword(password, salt);
-  if (primary === user.passwordHash) return true;
-  if (salt) {
-    const legacy = await hashPassword(password, '');
-    if (legacy === user.passwordHash) return true;
-  }
-  return false;
-}
-
-async function apiPost(path, body) {
-  try {
-    const res = await fetch(path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    let data = {};
-    try { data = await res.json(); } catch { /* ignore */ }
-    return { ok: res.ok, status: res.status, data };
-  } catch {
-    return { ok: false, status: 0, data: { error: 'Нет связи с сервером. Запустите запуск.command.' } };
-  }
-}
-
-async function checkServerAuth() {
-  try {
-    const res = await fetch('/api/health', { cache: 'no-store' });
-    useServerAuth = res.ok;
-  } catch {
-    useServerAuth = false;
-  }
-  return useServerAuth;
-}
-
-async function migrateLocalUsersToServer() {
-  const localUsers = getUsers();
-  if (!localUsers.length) return;
-  try {
-    await apiPost('/api/migrate-local', { users: localUsers });
-  } catch { /* ignore */ }
-}
-
-function showProtocolWarning() {
-  const el = document.getElementById('authProtocolWarn');
-  if (!el) return;
-  if (location.protocol === 'file:') {
-    el.textContent = 'Сайт открыт как файл — вход может не работать. Запустите запуск.command и откройте http://localhost:8080';
-    el.className = 'message warn';
-    el.hidden = false;
-  } else if (!useServerAuth) {
-    el.textContent = 'Сервер не запущен — сброс пароля покажет код на экране. Для письма на email запустите запуск.command.';
-    el.className = 'message warn';
-    el.hidden = false;
-  } else {
-    el.hidden = true;
-  }
-}
-
-function getUsers() {
-  try {
-    const users = JSON.parse(storageGet(STORAGE_KEYS.users) || '[]');
-    return Array.isArray(users) ? users : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveUsers(users) {
-  storageSet(STORAGE_KEYS.users, JSON.stringify(users));
-}
-
-function getSession() {
-  try {
-    return JSON.parse(storageGet(STORAGE_KEYS.session) || 'null');
-  } catch {
-    return null;
-  }
-}
-
-function setSession(user) {
-  storageSet(STORAGE_KEYS.session, JSON.stringify({
-    userId: user.id,
-    login: user.login,
-    displayLogin: user.displayLogin || user.login,
-    email: user.email || ''
-  }));
-}
-
-function clearSession() {
-  storageRemove(STORAGE_KEYS.session);
-}
-
-function normalizeLogin(login) {
-  return login.trim().toLowerCase();
-}
-
-async function registerUser(login, password, email) {
-  const normalized = normalizeLogin(login);
-  if (normalized.length < 3) return { ok: false, error: 'Логин — минимум 3 символа.' };
-  if (password.length < 4) return { ok: false, error: 'Пароль — минимум 4 символа.' };
-  if (!email || !email.includes('@')) return { ok: false, error: 'Укажите корректный email.' };
-
-  if (useServerAuth) {
-    const { ok, data } = await apiPost('/api/register', {
-      login: login.trim(),
-      password,
-      email: email.trim().toLowerCase()
-    });
-    if (!ok) return { ok: false, error: data.error || 'Ошибка регистрации.' };
-    return { ok: true, user: data.user };
-  }
-
-  const users = getUsers();
-  if (findUserByLogin(normalized)) {
-    return { ok: false, error: 'Такой логин уже занят.' };
-  }
-
-  const salt = generateId();
-  const passwordHash = await hashPassword(password, salt);
-  const user = {
-    id: generateId(),
-    login: normalized,
-    displayLogin: login.trim(),
-    email: email.trim().toLowerCase(),
-    salt,
-    passwordHash
-  };
-  users.push(user);
-  saveUsers(users);
-
-  if (users.length === 1) migrateLegacyToUser(user.id);
-
-  return { ok: true, user };
-}
-
-async function loginUser(login, password) {
-  if (useServerAuth) {
-    const { ok, data } = await apiPost('/api/login', { login, password });
-    if (ok) return { ok: true, user: data.user };
-  }
-
-  const user = findUserByLogin(login);
-  if (!user) return { ok: false, error: 'Неверный логин или пароль.' };
-
-  const valid = await verifyPassword(password, user);
-  if (!valid) return { ok: false, error: 'Неверный логин или пароль.' };
-
-  if (useServerAuth) {
-    await apiPost('/api/migrate-local', { users: [user] });
-  }
-
-  return { ok: true, user: {
-    id: user.id,
-    login: user.login,
-    displayLogin: user.displayLogin || user.login,
-    email: user.email || ''
-  }};
-}
-
-async function requestPasswordReset(login, email) {
-  const normalizedEmail = email.trim().toLowerCase();
-  const trimmedLogin = login.trim();
-
-  if (useServerAuth) {
-    const { ok, data } = await apiPost('/api/forgot-password', {
-      login: trimmedLogin,
-      email: normalizedEmail
-    });
-    if (ok && data.devCode) return { ok: true, ...data };
-    if (ok) return { ok: true, ...data };
-  }
-
-  const user = findUserByLogin(trimmedLogin);
-  if (!user) {
-    return { ok: false, error: 'Пользователь с таким логином не найден на этом компьютере.' };
-  }
-  if (!user.email) {
-    return {
-      ok: false,
-      error: 'Email не указан. Войдите в аккаунт → кнопка «Email» → сохраните почту, затем повторите сброс.'
-    };
-  }
-  if (user.email.toLowerCase() !== normalizedEmail) {
-    return { ok: false, error: 'Email не совпадает. Проверьте написание или обновите email в настройках аккаунта.' };
-  }
-
-  const code = String(Math.floor(100000 + Math.random() * 900000));
-  storageSet(`poolApp_reset_${normalizeLogin(trimmedLogin)}`, JSON.stringify({
-    code,
-    expires: Date.now() + 15 * 60 * 1000
-  }));
-
-  return {
-    ok: true,
-    devMode: true,
-    devCode: code,
-    message: 'Код показан ниже. Для отправки на email настройте data/smtp.json и запустите запуск.command.'
-  };
-}
-
-async function resetPassword(login, code, newPassword) {
-  const trimmedLogin = login.trim();
-  const resetKey = `poolApp_reset_${normalizeLogin(trimmedLogin)}`;
-
-  if (useServerAuth) {
-    const { ok, data } = await apiPost('/api/reset-password', {
-      login: trimmedLogin,
-      code: code.trim(),
-      newPassword
-    });
-    if (ok) {
-      storageRemove(resetKey);
-      return { ok: true, message: data.message };
-    }
-  }
-
-  const user = findUserByLogin(trimmedLogin);
-  if (!user) {
-    return { ok: false, error: 'Пользователь не найден.' };
-  }
-
-  let token;
-  try { token = JSON.parse(storageGet(resetKey)); } catch { token = null; }
-  if (!token || token.code !== code.trim() || token.expires < Date.now()) {
-    return { ok: false, error: 'Неверный или просроченный код (действует 15 минут).' };
-  }
-
-  user.salt = generateId();
-  user.passwordHash = await hashPassword(newPassword, user.salt);
-  const users = getUsers();
-  const idx = users.findIndex(u => u.id === user.id);
-  if (idx >= 0) {
-    users[idx] = user;
-    saveUsers(users);
-  }
-  storageRemove(resetKey);
-
-  if (useServerAuth) {
-    await apiPost('/api/migrate-local', { users: [user] });
-  }
-
-  return { ok: true, message: 'Пароль изменён. Теперь можно войти.' };
-}
-
-async function saveAccountEmail(email) {
-  if (!currentUser) return { ok: false, error: 'Не выполнен вход.' };
-  const normalized = email.trim().toLowerCase();
-  if (!normalized.includes('@') || normalized.length < 5) {
-    return { ok: false, error: 'Укажите корректный email.' };
-  }
-
-  if (useServerAuth) {
-    const { ok, data } = await apiPost('/api/update-email', {
-      userId: currentUser.id,
-      login: currentUser.login,
-      email: normalized
-    });
-    if (!ok) return { ok: false, error: data.error || 'Не удалось сохранить на сервере.' };
-  }
-
-  const users = getUsers();
-  const user = users.find(u => u.id === currentUser.id) || findUserByLogin(currentUser.login);
-  if (user) {
-    user.email = normalized;
-    const idx = users.findIndex(u => u.id === user.id);
-    if (idx >= 0) {
-      users[idx] = user;
-      saveUsers(users);
-    }
-  }
-
-  currentUser.email = normalized;
-  setSession(currentUser);
-  document.getElementById('currentUserLabel').textContent =
-    (currentUser.displayLogin || currentUser.login) + ` · ${normalized}`;
-
-  return { ok: true, message: 'Email сохранён.' };
-}
-
-function migrateLegacyToUser(userId) {
-  const hasLegacy = storageGet(LEGACY_KEYS.pools) || storageGet(LEGACY_KEYS.measurements);
-  if (!hasLegacy) return;
-
-  const data = {
-    pools: JSON.parse(storageGet(LEGACY_KEYS.pools) || '[]'),
-    activePoolId: storageGet(LEGACY_KEYS.activePool),
-    measurements: JSON.parse(storageGet(LEGACY_KEYS.measurements) || '[]'),
-    problems: JSON.parse(storageGet(LEGACY_KEYS.problems) || '{}'),
-    chemistry: []
-  };
-  storageSet(getUserDataKey(userId), JSON.stringify(data));
-}
-
-function loadUserData() {
+async function loadUserData() {
   if (!currentUser) return;
-
-  let data;
-  try {
-    data = JSON.parse(storageGet(getUserDataKey(currentUser.id)) || '{}');
-  } catch {
-    data = {};
-  }
-
-  poolList = Array.isArray(data.pools) ? data.pools : [];
-  activePoolId = data.activePoolId || null;
-  measurements = Array.isArray(data.measurements) ? data.measurements : [];
-  chemistryLog = Array.isArray(data.chemistry) ? data.chemistry : [];
-  selectedProblems = data.problems && typeof data.problems === 'object' ? data.problems : {};
-
+  const data = await dbLoadUserData(currentUser.id);
+  poolList = data.poolList;
+  measurements = data.measurements;
+  chemistryLog = data.chemistryLog;
+  selectedProblems = data.selectedProblems;
+  activePoolId = storageGet(activePoolKey()) || null;
   normalizeStoredData();
-  ensureDefaultPool();
+  await ensureDefaultPool();
 }
 
-function saveUserData() {
-  if (!currentUser) return;
-
-  const data = {
-    pools: poolList,
-    activePoolId,
-    measurements,
-    chemistry: chemistryLog,
-    problems: selectedProblems
-  };
-  storageSet(getUserDataKey(currentUser.id), JSON.stringify(data));
+async function saveActivePool() {
+  const pool = getActivePool();
+  if (!pool || !currentUser) return;
+  await dbUpsertPool(currentUser.id, pool, selectedProblems[pool.id] || []);
 }
 
-function savePools() {
-  saveUserData();
+async function ensureDefaultPool() {
+  if (poolList.length === 0) {
+    const pool = await dbCreateDefaultPool(currentUser.id);
+    poolList.push(pool);
+    selectedProblems[pool.id] = [];
+    activePoolId = pool.id;
+    saveActivePoolId();
+  }
+  if (!activePoolId || !poolList.find(p => p.id === activePoolId)) {
+    activePoolId = poolList[0].id;
+    saveActivePoolId();
+  }
 }
 
-function saveMeasurements() {
-  saveUserData();
+function showConfigError() {
+  document.getElementById('authConfigError').hidden = false;
+  showAuthScreen();
 }
 
-function saveProblems() {
-  saveUserData();
+function showAuthScreen() {
+  document.getElementById('authScreen').classList.remove('hidden');
+  document.getElementById('appScreen').classList.add('hidden');
 }
 
-function saveChemistry() {
-  saveUserData();
+async function handleDbError(err, context) {
+  console.error(context, err);
+  alert('Ошибка сохранения: ' + (err.message || context));
 }
-
 function normalizeLocation(loc) {
   if (!loc || typeof loc !== 'object') {
     return { address: '', lat: null, lng: null };
@@ -578,62 +196,11 @@ function normalizeStoredData() {
     }));
 }
 
-function ensureDefaultPool() {
-  if (poolList.length === 0) {
-    const pool = {
-      id: generateId(),
-      name: 'Мой бассейн',
-      volume: 25000,
-      treatmentType: 'chlorine',
-      location: { address: '', lat: null, lng: null }
-    };
-    poolList.push(pool);
-    activePoolId = pool.id;
-    savePools();
-  }
-  if (!activePoolId || !poolList.find(p => p.id === activePoolId)) {
-    activePoolId = poolList[0].id;
-    savePools();
-  }
-}
-
-function openAccountModal() {
-  document.getElementById('accountEmail').value = currentUser?.email || '';
-  document.getElementById('accountEmailError').hidden = true;
-  document.getElementById('accountEmailSuccess').hidden = true;
-  document.getElementById('accountModal').classList.remove('hidden');
-}
-
-function closeAccountModal() {
-  document.getElementById('accountModal').classList.add('hidden');
-}
-
-async function handleSaveAccountEmail() {
-  const email = document.getElementById('accountEmail').value;
-  document.getElementById('accountEmailError').hidden = true;
-  document.getElementById('accountEmailSuccess').hidden = true;
-
-  const result = await saveAccountEmail(email);
-  if (!result.ok) {
-    document.getElementById('accountEmailError').textContent = result.error;
-    document.getElementById('accountEmailError').hidden = false;
-    return;
-  }
-  document.getElementById('accountEmailSuccess').textContent = result.message;
-  document.getElementById('accountEmailSuccess').hidden = false;
-}
-
-function showAuthScreen() {
-  document.getElementById('authScreen').classList.remove('hidden');
-  document.getElementById('appScreen').classList.add('hidden');
-}
-
 function showAppScreen() {
   document.getElementById('authScreen').classList.add('hidden');
   document.getElementById('appScreen').classList.remove('hidden');
-  const label = currentUser.displayLogin || currentUser.login;
-  const email = currentUser.email ? ` · ${currentUser.email}` : '';
-  document.getElementById('currentUserLabel').textContent = label + email;
+  document.getElementById('currentUserLabel').textContent =
+    (currentUser.displayLogin || currentUser.email) + ` · ${currentUser.email}`;
 }
 
 function switchAuthTab(tab) {
@@ -643,8 +210,7 @@ function switchAuthTab(tab) {
   document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
   document.getElementById('registerForm').classList.toggle('hidden', tab !== 'register');
   document.getElementById('forgotForm').classList.toggle('hidden', tab !== 'forgot');
-  document.getElementById('resetForm').classList.toggle('hidden', tab !== 'reset');
-  ['loginError', 'registerError', 'forgotError', 'forgotSuccess', 'forgotDevCode', 'resetError', 'resetSuccess'].forEach(id => {
+  ['loginError', 'registerError', 'registerSuccess', 'forgotError', 'forgotSuccess'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.hidden = true;
   });
@@ -667,111 +233,74 @@ function showAuthMessage(id, text, type = 'error') {
 
 async function handleLogin(e) {
   e.preventDefault();
-  const login = document.getElementById('loginUsername').value;
+  hideAuthMessages(['loginError']);
+  const email = document.getElementById('loginEmail').value;
   const password = document.getElementById('loginPassword').value;
-  const errorEl = document.getElementById('loginError');
 
-  const result = await loginUser(login, password);
+  const result = await authSignIn(email, password);
   if (!result.ok) {
-    errorEl.textContent = result.error;
-    errorEl.hidden = false;
+    showAuthMessage('loginError', result.error);
     return;
   }
 
   currentUser = result.user;
-  setSession(currentUser);
-  startApp();
+  await startApp();
 }
 
 async function handleRegister(e) {
   e.preventDefault();
-  const login = document.getElementById('registerUsername').value;
+  hideAuthMessages(['registerError', 'registerSuccess']);
+
+  const displayName = document.getElementById('registerDisplayName').value;
   const email = document.getElementById('registerEmail').value;
   const password = document.getElementById('registerPassword').value;
   const confirm = document.getElementById('registerPasswordConfirm').value;
-
-  hideAuthMessages(['registerError']);
 
   if (password !== confirm) {
     showAuthMessage('registerError', 'Пароли не совпадают.');
     return;
   }
 
-  const result = await registerUser(login, password, email);
+  const result = await authSignUp(email, password, displayName);
   if (!result.ok) {
     showAuthMessage('registerError', result.error);
     return;
   }
 
+  if (result.needsConfirmation) {
+    showAuthMessage('registerSuccess', result.message, 'success');
+    return;
+  }
+
   currentUser = result.user;
-  setSession(currentUser);
-  startApp();
+  await startApp();
 }
 
 async function handleForgot(e) {
   e.preventDefault();
-  hideAuthMessages(['forgotError', 'forgotSuccess', 'forgotDevCode']);
+  hideAuthMessages(['forgotError', 'forgotSuccess']);
 
-  const login = document.getElementById('forgotLogin').value;
   const email = document.getElementById('forgotEmail').value;
-
-  const result = await requestPasswordReset(login, email);
+  const result = await authResetPassword(email);
   if (!result.ok) {
     showAuthMessage('forgotError', result.error);
     return;
   }
 
   showAuthMessage('forgotSuccess', result.message, 'success');
-  document.getElementById('resetLogin').value = login.trim();
-
-  if (result.devCode) {
-    showAuthMessage('forgotDevCode', `Код для теста (почта не настроена): ${result.devCode}`, 'info');
-  }
-
-  switchAuthTab('reset');
-  document.getElementById('resetForm').classList.remove('hidden');
-  document.querySelectorAll('.auth-tab').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tab === 'reset');
-  });
 }
 
-async function handleReset(e) {
-  e.preventDefault();
-  hideAuthMessages(['resetError', 'resetSuccess']);
-
-  const login = document.getElementById('resetLogin').value;
-  const code = document.getElementById('resetCode').value;
-  const password = document.getElementById('resetPassword').value;
-  const confirm = document.getElementById('resetPasswordConfirm').value;
-
-  if (password !== confirm) {
-    showAuthMessage('resetError', 'Пароли не совпадают.');
-    return;
-  }
-
-  const result = await resetPassword(login, code, password);
-  if (!result.ok) {
-    showAuthMessage('resetError', result.error);
-    return;
-  }
-
-  showAuthMessage('resetSuccess', result.message || 'Пароль изменён!', 'success');
-  document.getElementById('loginUsername').value = login.trim();
-  setTimeout(() => switchAuthTab('login'), 1500);
-}
-
-function handleLogout() {
-  saveCurrentPoolProblems();
-  saveUserData();
+async function handleLogout() {
+  await saveCurrentPoolProblems();
+  await authSignOut();
   currentUser = null;
   poolList = [];
   activePoolId = null;
   measurements = [];
   chemistryLog = [];
   selectedProblems = {};
-  clearSession();
   destroyCharts();
-  destroyPoolMap();
+  destroyPoolMap(true);
   showAuthScreen();
   document.getElementById('loginForm').reset();
   document.getElementById('registerForm').reset();
@@ -786,24 +315,28 @@ function destroyCharts() {
   });
 }
 
-function startApp() {
-  loadUserData();
-  showAppScreen();
-  renderPoolSelect();
-  setActivePool(activePoolId);
+async function startApp() {
+  try {
+    await loadUserData();
+    showAppScreen();
+    renderPoolSelect();
+    await setActivePool(activePoolId);
+  } catch (err) {
+    await handleDbError(err, 'loadUserData');
+  }
 }
 
 function getActivePool() {
   return poolList.find(p => p.id === activePoolId) || null;
 }
 
-function setActivePool(poolId) {
+async function setActivePool(poolId) {
   const pool = poolList.find(p => p.id === poolId);
   if (!pool) return false;
 
-  saveCurrentPoolProblems();
+  await saveCurrentPoolProblems();
   activePoolId = pool.id;
-  savePools();
+  saveActivePoolId();
 
   const select = document.getElementById('poolSelect');
   if (select && select.value !== pool.id) {
@@ -816,13 +349,21 @@ function setActivePool(poolId) {
   return true;
 }
 
-function saveCurrentPoolProblems() {
-  if (!activePoolId) return;
+async function saveCurrentPoolProblems() {
+  if (!activePoolId || !currentUser) return;
   const grid = document.getElementById('problemsGrid');
-  if (!grid) return;
-  const checked = [...grid.querySelectorAll('input:checked')].map(el => el.value);
-  selectedProblems[activePoolId] = checked;
-  saveProblems();
+  if (grid) {
+    const checked = [...grid.querySelectorAll('input:checked')].map(el => el.value);
+    selectedProblems[activePoolId] = checked;
+  }
+  const pool = getActivePool();
+  if (pool) {
+    try {
+      await dbUpsertPool(currentUser.id, pool, selectedProblems[activePoolId] || []);
+    } catch (err) {
+      await handleDbError(err, 'saveProblems');
+    }
+  }
 }
 
 function getPoolMeasurements(poolId) {
@@ -866,27 +407,51 @@ function updateLocationStatus(text) {
   if (el) el.textContent = text;
 }
 
-function destroyPoolMap() {
+function destroyPoolMap(resetPoolId = false) {
   if (poolMap) {
     poolMap.remove();
     poolMap = null;
     poolMarker = null;
   }
-  lastMapPoolId = null;
+  if (resetPoolId) lastMapPoolId = null;
 }
 
-function updateRouteLinks(lat, lng) {
-  const routeActions = document.getElementById('routeActions');
-  if (!routeActions) return;
+function fixLeafletIcons() {
+  if (typeof L === 'undefined') return;
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: LEAFLET_ICON_BASE + 'marker-icon-2x.png',
+    iconUrl: LEAFLET_ICON_BASE + 'marker-icon.png',
+    shadowUrl: LEAFLET_ICON_BASE + 'marker-shadow.png'
+  });
+}
 
-  if (lat == null || lng == null) {
-    routeActions.classList.add('hidden');
+function refreshMapSize() {
+  if (!poolMap) return;
+  poolMap.invalidateSize({ animate: false });
+  requestAnimationFrame(() => {
+    if (poolMap) poolMap.invalidateSize({ animate: false });
+  });
+}
+
+function updateRouteLinks(lat, lng, address) {
+  const routeActions = document.getElementById('routeActions');
+  const routeLink = document.getElementById('routeGoogle');
+  if (!routeActions || !routeLink) return;
+
+  if (lat != null && lng != null) {
+    routeActions.classList.remove('hidden');
+    routeLink.href = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
     return;
   }
 
-  routeActions.classList.remove('hidden');
-  document.getElementById('routeGoogle').href =
-    `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  if (address && address.trim()) {
+    routeActions.classList.remove('hidden');
+    routeLink.href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address.trim())}`;
+    return;
+  }
+
+  routeActions.classList.add('hidden');
 }
 
 function setMapMarker(lat, lng, pan = true) {
@@ -899,14 +464,14 @@ function setMapMarker(lat, lng, pan = true) {
     poolMarker.on('dragend', () => {
       const pos = poolMarker.getLatLng();
       updateLocationStatus(`Метка: ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)} — нажмите «Сохранить локацию»`);
-      updateRouteLinks(pos.lat, pos.lng);
+      updateRouteLinks(pos.lat, pos.lng, document.getElementById('poolAddress')?.value);
     });
   }
 
   if (pan) {
     poolMap.setView([lat, lng], Math.max(poolMap.getZoom(), 14));
   }
-  updateRouteLinks(lat, lng);
+  updateRouteLinks(lat, lng, document.getElementById('poolAddress')?.value);
   updateLocationStatus(`Метка: ${lat.toFixed(5)}, ${lng.toFixed(5)} — нажмите «Сохранить локацию»`);
 }
 
@@ -917,65 +482,115 @@ function getMarkerCoords() {
 }
 
 function initPoolMap(pool) {
-  destroyPoolMap();
+  const mapEl = document.getElementById('poolMap');
+  if (!mapEl) return;
+
   if (typeof L === 'undefined') {
-    updateLocationStatus('Карта не загрузилась. Проверьте интернет.');
+    if (mapInitRetries < 10) {
+      mapInitRetries += 1;
+      updateLocationStatus('Загрузка карты...');
+      setTimeout(() => initPoolMap(pool), 400);
+      return;
+    }
+    updateLocationStatus('Карта не загрузилась. Проверьте интернет или обновите страницу.');
+    syncRouteFromPool(pool);
     return;
   }
+
+  mapInitRetries = 0;
+  fixLeafletIcons();
+  destroyPoolMap();
 
   const loc = pool.location || normalizeLocation(null);
   const hasCoords = loc.lat != null && loc.lng != null;
   const center = hasCoords ? [loc.lat, loc.lng] : DEFAULT_MAP_CENTER;
   const zoom = hasCoords ? 15 : 10;
 
-  poolMap = L.map('poolMap', { scrollWheelZoom: true }).setView(center, zoom);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-  }).addTo(poolMap);
+  try {
+    poolMap = L.map(mapEl, { scrollWheelZoom: true }).setView(center, zoom);
+    L.tileLayer(MAP_TILE_URL, {
+      subdomains: 'abcd',
+      maxZoom: 20,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+    }).addTo(poolMap);
 
-  if (hasCoords) {
-    setMapMarker(loc.lat, loc.lng, false);
-    updateLocationStatus(loc.address || `Сохранено: ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`);
-  } else {
-    updateLocationStatus('Кликните на карту, чтобы поставить метку, или найдите адрес.');
-    updateRouteLinks(null, null);
+    if (hasCoords) {
+      setMapMarker(loc.lat, loc.lng, false);
+      updateLocationStatus(loc.address || `Сохранено: ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`);
+    } else {
+      updateLocationStatus('Кликните на карту, чтобы поставить метку, или найдите адрес.');
+    }
+
+    poolMap.on('click', e => {
+      setMapMarker(e.latlng.lat, e.latlng.lng);
+    });
+
+    setTimeout(refreshMapSize, 100);
+    setTimeout(refreshMapSize, 500);
+  } catch (err) {
+    console.error('Map init error:', err);
+    updateLocationStatus('Не удалось показать карту. Используйте «Найти по адресу» или GPS — маршрут всё равно можно сохранить.');
   }
 
-  poolMap.on('click', e => {
-    setMapMarker(e.latlng.lat, e.latlng.lng);
-  });
+  syncRouteFromPool(pool);
+}
 
-  setTimeout(() => {
-    if (poolMap) poolMap.invalidateSize();
-  }, 150);
+function syncRouteFromPool(pool) {
+  const loc = pool?.location || normalizeLocation(null);
+  updateRouteLinks(loc.lat, loc.lng, loc.address);
 }
 
 function renderLocationUI(pool) {
   const addressInput = document.getElementById('poolAddress');
   const poolChanged = lastMapPoolId !== pool.id;
 
-  if (addressInput && poolChanged) {
+  if (addressInput) {
     addressInput.value = pool.location?.address || '';
   }
 
-  if (poolChanged) {
+  syncRouteFromPool(pool);
+
+  if (poolChanged || !poolMap) {
     lastMapPoolId = pool.id;
     initPoolMap(pool);
+  } else {
+    refreshMapSize();
   }
 }
 
 async function geocodeAddress(address) {
-  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
-  const res = await fetch(url, { headers: NOMINATIM_HEADERS });
-  if (!res.ok) return null;
-  const data = await res.json();
-  if (!data.length) return null;
-  return {
-    lat: parseFloat(data[0].lat),
-    lng: parseFloat(data[0].lon),
-    address: data[0].display_name
-  };
+  try {
+    const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(address)}&limit=1&lang=ru`;
+    const res = await fetch(photonUrl);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.features && data.features.length) {
+        const [lng, lat] = data.features[0].geometry.coordinates;
+        const p = data.features[0].properties;
+        const parts = [p.name, p.street, p.housenumber, p.city, p.country].filter(Boolean);
+        return {
+          lat,
+          lng,
+          address: parts.join(', ') || address
+        };
+      }
+    }
+  } catch { /* fallback */ }
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&countrycodes=ua`;
+    const res = await fetch(url, { headers: NOMINATIM_HEADERS });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.length) return null;
+    return {
+      lat: parseFloat(data[0].lat),
+      lng: parseFloat(data[0].lon),
+      address: data[0].display_name
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function reverseGeocode(lat, lng) {
@@ -986,22 +601,30 @@ async function reverseGeocode(lat, lng) {
   return data.display_name || '';
 }
 
-function savePoolLocation() {
+async function savePoolLocation() {
   const pool = getActivePool();
-  if (!pool) return false;
+  if (!pool || !currentUser) return false;
 
-  const coords = getMarkerCoords();
+  let coords = getMarkerCoords();
+  const address = document.getElementById('poolAddress').value.trim();
+
+  if (!coords && pool.location?.lat != null && pool.location?.lng != null) {
+    coords = { lat: pool.location.lat, lng: pool.location.lng };
+  }
+
   if (!coords) {
-    alert('Сначала укажите точку на карте или найдите адрес.');
+    alert('Сначала укажите точку на карте, нажмите «Найти по адресу» или «Моё местоположение».');
     return false;
   }
 
-  pool.location = {
-    address: document.getElementById('poolAddress').value.trim(),
-    lat: coords.lat,
-    lng: coords.lng
-  };
-  savePools();
+  pool.location = { address, lat: coords.lat, lng: coords.lng };
+  try {
+    await dbUpsertPool(currentUser.id, pool, selectedProblems[pool.id] || []);
+  } catch (err) {
+    await handleDbError(err, 'saveLocation');
+    return false;
+  }
+  syncRouteFromPool(pool);
   updateLocationStatus(pool.location.address || `Сохранено: ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`);
   document.getElementById('activePoolMeta').textContent = formatPoolMeta(
     pool,
@@ -1142,7 +765,10 @@ function renderProblemsGrid() {
 function updatePoolProblems() {
   const checked = [...document.querySelectorAll('#problemsGrid input:checked')].map(el => el.value);
   selectedProblems[activePoolId] = checked;
-  saveProblems();
+  const pool = getActivePool();
+  if (pool && currentUser) {
+    dbUpsertPool(currentUser.id, pool, checked).catch(err => handleDbError(err, 'saveProblems'));
+  }
   renderProblemRecommendations(checked);
 }
 
@@ -1181,7 +807,7 @@ function renderPoolSelect() {
   } else if (poolList.length > 0) {
     activePoolId = poolList[0].id;
     select.value = activePoolId;
-    savePools();
+    saveActivePoolId();
   }
 
   isUpdatingUI = false;
@@ -1239,7 +865,7 @@ function renderPoolContent() {
   if (!pool) {
     content.classList.add('hidden');
     noHint.classList.remove('hidden');
-    destroyPoolMap();
+    destroyPoolMap(true);
     return;
   }
 
@@ -1397,18 +1023,12 @@ function initAuthListeners() {
   document.getElementById('loginForm').addEventListener('submit', handleLogin);
   document.getElementById('registerForm').addEventListener('submit', handleRegister);
   document.getElementById('forgotForm').addEventListener('submit', handleForgot);
-  document.getElementById('resetForm').addEventListener('submit', handleReset);
   document.getElementById('gotoForgotBtn').addEventListener('click', () => switchAuthTab('forgot'));
   document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-  document.getElementById('accountBtn').addEventListener('click', openAccountModal);
-  document.getElementById('saveAccountEmailBtn').addEventListener('click', handleSaveAccountEmail);
-  document.querySelectorAll('[data-close-account]').forEach(el => {
-    el.addEventListener('click', closeAccountModal);
-  });
 }
 
 function initEventListeners() {
-  document.getElementById('poolSelect').addEventListener('change', e => {
+  document.getElementById('poolSelect').addEventListener('change', async e => {
     if (isUpdatingUI) return;
     const poolId = e.target.value;
     if (!poolId) {
@@ -1417,7 +1037,7 @@ function initEventListeners() {
       isUpdatingUI = false;
       return;
     }
-    if (setActivePool(poolId)) {
+    if (await setActivePool(poolId)) {
       showMessage(document.getElementById('selectorMessage'), `Выбран бассейн «${getActivePool().name}»`);
     }
   });
@@ -1437,7 +1057,7 @@ function initEventListeners() {
     if (e.target.value === 'custom') document.getElementById('newCustomVolume').focus();
   });
 
-  document.getElementById('addPoolForm').addEventListener('submit', e => {
+  document.getElementById('addPoolForm').addEventListener('submit', async e => {
     e.preventDefault();
     const name = document.getElementById('newPoolName').value.trim();
     const errorEl = document.getElementById('modalError');
@@ -1466,31 +1086,43 @@ function initEventListeners() {
       treatmentType: document.getElementById('newPoolTreatment').value === 'peroxide' ? 'peroxide' : 'chlorine',
       location: { address: '', lat: null, lng: null }
     };
-    poolList.push(pool);
-    savePools();
-    closeModal();
-    renderPoolSelect();
-    setActivePool(pool.id);
-    showMessage(document.getElementById('selectorMessage'), `Бассейн «${name}» добавлен!`);
+
+    try {
+      await dbUpsertPool(currentUser.id, pool, []);
+      poolList.push(pool);
+      selectedProblems[pool.id] = [];
+      closeModal();
+      renderPoolSelect();
+      await setActivePool(pool.id);
+      showMessage(document.getElementById('selectorMessage'), `Бассейн «${name}» добавлен!`);
+    } catch (err) {
+      await handleDbError(err, 'addPool');
+    }
   });
 
-  document.getElementById('deletePoolBtn').addEventListener('click', () => {
+  document.getElementById('deletePoolBtn').addEventListener('click', async () => {
     if (poolList.length <= 1) return;
     const pool = getActivePool();
     if (!confirm(`Удалить бассейн «${pool.name}» и все его данные?`)) return;
 
-    poolList = poolList.filter(p => p.id !== activePoolId);
-    measurements = measurements.filter(m => m.poolId !== activePoolId);
-    chemistryLog = chemistryLog.filter(c => c.poolId !== activePoolId);
-    delete selectedProblems[activePoolId];
-    activePoolId = poolList[0].id;
-    saveUserData();
-    renderPoolSelect();
-    setActivePool(activePoolId);
-    showMessage(document.getElementById('selectorMessage'), 'Бассейн удалён.');
+    const deletedId = activePoolId;
+    try {
+      await dbDeletePool(deletedId);
+      poolList = poolList.filter(p => p.id !== deletedId);
+      measurements = measurements.filter(m => m.poolId !== deletedId);
+      chemistryLog = chemistryLog.filter(c => c.poolId !== deletedId);
+      delete selectedProblems[deletedId];
+      activePoolId = poolList[0].id;
+      saveActivePoolId();
+      renderPoolSelect();
+      await setActivePool(activePoolId);
+      showMessage(document.getElementById('selectorMessage'), 'Бассейн удалён.');
+    } catch (err) {
+      await handleDbError(err, 'deletePool');
+    }
   });
 
-  document.getElementById('volumeSelect').addEventListener('change', e => {
+  document.getElementById('volumeSelect').addEventListener('change', async e => {
     if (isUpdatingUI) return;
     const wrap = document.getElementById('customVolumeWrap');
     wrap.classList.toggle('hidden', e.target.value !== 'custom');
@@ -1498,16 +1130,20 @@ function initEventListeners() {
       const pool = getActivePool();
       if (pool) {
         pool.volume = parseInt(e.target.value, 10);
-        savePools();
-        renderPoolContent();
-        showMessage(document.getElementById('selectorMessage'), 'Объём сохранён.');
+        try {
+          await dbUpsertPool(currentUser.id, pool, selectedProblems[pool.id] || []);
+          renderPoolContent();
+          showMessage(document.getElementById('selectorMessage'), 'Объём сохранён.');
+        } catch (err) {
+          await handleDbError(err, 'saveVolume');
+        }
       }
     } else {
       document.getElementById('customVolume').focus();
     }
   });
 
-  document.getElementById('saveVolumeBtn').addEventListener('click', () => {
+  document.getElementById('saveVolumeBtn').addEventListener('click', async () => {
     const pool = getActivePool();
     const custom = parseInt(document.getElementById('customVolume').value, 10);
     if (!pool || !custom || custom < 1000) {
@@ -1515,39 +1151,53 @@ function initEventListeners() {
       return;
     }
     pool.volume = custom;
-    savePools();
-    renderPoolContent();
-    showMessage(document.getElementById('selectorMessage'), 'Объём сохранён.');
+    try {
+      await dbUpsertPool(currentUser.id, pool, selectedProblems[pool.id] || []);
+      renderPoolContent();
+      showMessage(document.getElementById('selectorMessage'), 'Объём сохранён.');
+    } catch (err) {
+      await handleDbError(err, 'saveVolume');
+    }
   });
 
-  document.getElementById('treatmentSelect').addEventListener('change', e => {
+  document.getElementById('treatmentSelect').addEventListener('change', async e => {
     if (isUpdatingUI) return;
     const pool = getActivePool();
     if (!pool) return;
 
     pool.treatmentType = e.target.value === 'peroxide' ? 'peroxide' : 'chlorine';
-    savePools();
-    renderPoolContent();
-    showMessage(document.getElementById('selectorMessage'), `Обработка: ${TREATMENT_LABELS[pool.treatmentType]}`);
+    try {
+      await dbUpsertPool(currentUser.id, pool, selectedProblems[pool.id] || []);
+      renderPoolContent();
+      showMessage(document.getElementById('selectorMessage'), `Обработка: ${TREATMENT_LABELS[pool.treatmentType]}`);
+    } catch (err) {
+      await handleDbError(err, 'saveTreatment');
+    }
   });
 
-  document.getElementById('measurementForm').addEventListener('submit', e => {
+  document.getElementById('measurementForm').addEventListener('submit', async e => {
     e.preventDefault();
     const pool = getActivePool();
     if (!pool) return;
 
-    measurements.push({
+    const entry = {
       id: generateId(),
       poolId: pool.id,
       ph: parseFloat(document.getElementById('ph').value),
       chlorine: parseFloat(document.getElementById('chlorine').value),
       temperature: parseFloat(document.getElementById('temperature').value),
       date: new Date().toISOString()
-    });
-    saveMeasurements();
-    renderPoolContent();
-    e.target.reset();
-    showMessage(document.getElementById('selectorMessage'), 'Измерение сохранено!');
+    };
+
+    try {
+      const saved = await dbInsertMeasurement(currentUser.id, entry);
+      measurements.unshift(saved);
+      renderPoolContent();
+      e.target.reset();
+      showMessage(document.getElementById('selectorMessage'), 'Измерение сохранено!');
+    } catch (err) {
+      await handleDbError(err, 'saveMeasurement');
+    }
   });
 
   document.getElementById('chemicalName').addEventListener('change', e => {
@@ -1555,7 +1205,7 @@ function initEventListeners() {
     if (e.target.value === 'custom') document.getElementById('customChemical').focus();
   });
 
-  document.getElementById('chemistryForm').addEventListener('submit', e => {
+  document.getElementById('chemistryForm').addEventListener('submit', async e => {
     e.preventDefault();
     const pool = getActivePool();
     if (!pool) return;
@@ -1574,7 +1224,7 @@ function initEventListeners() {
       return;
     }
 
-    chemistryLog.push({
+    const entry = {
       id: generateId(),
       poolId: pool.id,
       chemical,
@@ -1582,32 +1232,46 @@ function initEventListeners() {
       unit,
       comment,
       date: new Date().toISOString()
-    });
-    saveChemistry();
-    renderPoolContent();
-    e.target.reset();
-    document.getElementById('customChemicalWrap').classList.add('hidden');
-    showMessage(document.getElementById('selectorMessage'), 'Запись о химии сохранена!');
+    };
+
+    try {
+      const saved = await dbInsertChemistry(currentUser.id, entry);
+      chemistryLog.unshift(saved);
+      renderPoolContent();
+      e.target.reset();
+      document.getElementById('customChemicalWrap').classList.add('hidden');
+      showMessage(document.getElementById('selectorMessage'), 'Запись о химии сохранена!');
+    } catch (err) {
+      await handleDbError(err, 'saveChemistry');
+    }
   });
 
-  document.getElementById('clearChemistryBtn').addEventListener('click', () => {
+  document.getElementById('clearChemistryBtn').addEventListener('click', async () => {
     const pool = getActivePool();
     if (!pool || !confirm(`Очистить историю химии для «${pool.name}»?`)) return;
 
-    chemistryLog = chemistryLog.filter(c => c.poolId !== pool.id);
-    saveChemistry();
-    renderPoolContent();
-    showMessage(document.getElementById('selectorMessage'), 'История химии очищена.');
+    try {
+      await dbClearChemistry(pool.id);
+      chemistryLog = chemistryLog.filter(c => c.poolId !== pool.id);
+      renderPoolContent();
+      showMessage(document.getElementById('selectorMessage'), 'История химии очищена.');
+    } catch (err) {
+      await handleDbError(err, 'clearChemistry');
+    }
   });
 
-  document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+  document.getElementById('clearHistoryBtn').addEventListener('click', async () => {
     const pool = getActivePool();
     if (!pool || !confirm(`Очистить историю измерений для «${pool.name}»?`)) return;
 
-    measurements = measurements.filter(m => m.poolId !== pool.id);
-    saveMeasurements();
-    renderPoolContent();
-    showMessage(document.getElementById('selectorMessage'), 'История очищена.');
+    try {
+      await dbClearMeasurements(pool.id);
+      measurements = measurements.filter(m => m.poolId !== pool.id);
+      renderPoolContent();
+      showMessage(document.getElementById('selectorMessage'), 'История очищена.');
+    } catch (err) {
+      await handleDbError(err, 'clearMeasurements');
+    }
   });
 
   document.getElementById('geocodeBtn').addEventListener('click', async () => {
@@ -1660,10 +1324,14 @@ function initEventListeners() {
     );
   });
 
-  document.getElementById('saveLocationBtn').addEventListener('click', () => {
-    if (savePoolLocation()) {
+  document.getElementById('saveLocationBtn').addEventListener('click', async () => {
+    if (await savePoolLocation()) {
       showMessage(document.getElementById('selectorMessage'), 'Локация бассейна сохранена!');
     }
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && poolMap) refreshMapSize();
   });
 }
 
@@ -1671,31 +1339,16 @@ async function init() {
   initAuthListeners();
   initEventListeners();
 
-  await checkServerAuth();
-  if (useServerAuth) {
-    await migrateLocalUsersToServer();
+  if (!initSupabaseClient()) {
+    showConfigError();
+    return;
   }
-  showProtocolWarning();
 
-  const session = getSession();
-  if (session && session.userId) {
-    if (useServerAuth) {
-      currentUser = {
-        id: session.userId,
-        login: session.login,
-        displayLogin: session.displayLogin || session.login,
-        email: session.email || ''
-      };
-      startApp();
-      return;
-    }
-    const user = getUsers().find(u => u.id === session.userId) || findUserByLogin(session.login || '');
-    if (user) {
-      currentUser = user;
-      startApp();
-      return;
-    }
-    clearSession();
+  const session = await authGetSession();
+  if (session?.user) {
+    currentUser = mapUser(session);
+    await startApp();
+    return;
   }
 
   showAuthScreen();

@@ -194,10 +194,20 @@ td.comment-cell {
 
 .pool-map {
   height: 280px;
+  min-height: 280px;
+  width: 100%;
   border-radius: 10px;
   border: 2px solid #d8eaf4;
   margin: 14px 0 10px;
   z-index: 1;
+  background: #e8f4fc;
+}
+
+.pool-map .leaflet-container {
+  height: 100%;
+  width: 100%;
+  border-radius: 8px;
+  font-family: inherit;
 }
 
 .location-actions,
