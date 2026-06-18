@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Учёт параметров бассейна</title>
-  <link rel="stylesheet" href="styles.css?v=7">
+  <link rel="stylesheet" href="styles.css?v=10">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
@@ -52,13 +52,13 @@
           <label for="registerPasswordConfirm">Повторите пароль</label>
           <input type="password" id="registerPasswordConfirm" autocomplete="new-password" placeholder="Ещё раз пароль" required minlength="6">
         </div>
-        <button type="submit" class="btn btn-primary btn-full">Зарегистрироваться</button>
         <p id="registerError" class="message error" hidden></p>
         <p id="registerSuccess" class="message success" hidden></p>
+        <button type="submit" class="btn btn-primary btn-full">Зарегистрироваться</button>
       </form>
 
       <form id="forgotForm" class="auth-form hidden">
-        <p class="hint">Введите email — пришлём ссылку для нового пароля.</p>
+        <p class="hint auth-form-hint">Введите email — пришлём ссылку для нового пароля.</p>
         <div class="field">
           <label for="forgotEmail">Email</label>
           <input type="email" id="forgotEmail" autocomplete="email" placeholder="email@example.com" required maxlength="80">
@@ -66,6 +66,21 @@
         <p id="forgotError" class="message error" hidden></p>
         <p id="forgotSuccess" class="message success" hidden></p>
         <button type="submit" class="btn btn-primary btn-full">Отправить ссылку</button>
+      </form>
+
+      <form id="newPasswordForm" class="auth-form hidden">
+        <p class="hint auth-form-hint">Придумайте новый пароль (минимум 6 символов).</p>
+        <div class="field">
+          <label for="newPassword">Новый пароль</label>
+          <input type="password" id="newPassword" autocomplete="new-password" placeholder="Минимум 6 символов" required minlength="6">
+        </div>
+        <div class="field">
+          <label for="newPasswordConfirm">Повторите пароль</label>
+          <input type="password" id="newPasswordConfirm" autocomplete="new-password" placeholder="Ещё раз пароль" required minlength="6">
+        </div>
+        <p id="newPasswordError" class="message error" hidden></p>
+        <p id="newPasswordSuccess" class="message success" hidden></p>
+        <button type="submit" class="btn btn-primary btn-full">Сохранить пароль</button>
       </form>
 
       <p id="authConfigError" class="message error" hidden>Настройте Supabase в файле config.js</p>
@@ -80,9 +95,18 @@
           <h1>Учёт параметров бассейна</h1>
           <p class="subtitle">Контроль pH, хлора, температуры и состояния воды</p>
         </div>
-        <div class="user-bar">
-          <span id="currentUserLabel" class="user-label"></span>
-          <button type="button" id="logoutBtn" class="btn btn-secondary btn-small btn-logout">Выйти</button>
+        <div class="user-menu" id="userMenu">
+          <button type="button" id="userMenuBtn" class="user-menu-btn" aria-expanded="false" aria-haspopup="true" aria-label="Меню пользователя">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </button>
+          <div id="userMenuDropdown" class="user-menu-dropdown hidden" role="menu">
+            <p class="user-menu-email" id="currentUserLabel"></p>
+            <button type="button" id="changePasswordBtn" class="user-menu-item" role="menuitem">Сменить пароль</button>
+            <button type="button" id="logoutBtn" class="user-menu-item user-menu-item-danger" role="menuitem">Выйти</button>
+          </div>
         </div>
       </div>
     </header>
@@ -346,9 +370,9 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="config.js"></script>
-  <script src="supabase-db.js?v=7"></script>
+  <script src="supabase-db.js?v=10"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

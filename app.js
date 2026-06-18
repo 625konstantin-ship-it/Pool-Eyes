@@ -68,6 +68,7 @@ let poolMarker = null;
 let lastMapPoolId = null;
 let mapInitRetries = 0;
 let measurementHistoryOpen = false;
+let pendingPasswordRecovery = false;
 const MAP_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const MAP_TILE_FALLBACK_URL = 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png';
 const LEAFLET_ICON_BASE = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/';
@@ -203,10 +204,130 @@ function normalizeStoredData() {
 function updateUserLabel() {
   const el = document.getElementById('currentUserLabel');
   if (!el || !currentUser) return;
-  const compact = window.matchMedia('(max-width: 768px)').matches;
-  el.textContent = compact
-    ? currentUser.email
-    : `${currentUser.displayLogin || currentUser.email} · ${currentUser.email}`;
+  el.textContent = currentUser.email;
+}
+
+function closeUserMenu() {
+  const dropdown = document.getElementById('userMenuDropdown');
+  const btn = document.getElementById('userMenuBtn');
+  if (dropdown) dropdown.classList.add('hidden');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+function toggleUserMenu() {
+  const dropdown = document.getElementById('userMenuDropdown');
+  const btn = document.getElementById('userMenuBtn');
+  if (!dropdown || !btn) return;
+
+  const willOpen = dropdown.classList.contains('hidden');
+  if (willOpen) {
+    dropdown.classList.remove('hidden');
+    btn.setAttribute('aria-expanded', 'true');
+  } else {
+    closeUserMenu();
+  }
+}
+
+async function handleChangePassword() {
+  closeUserMenu();
+  if (!currentUser?.email) return;
+
+  if (!confirm(`Отправить ссылку для смены пароля на ${currentUser.email}?`)) return;
+
+  try {
+    const result = await authResetPassword(currentUser.email);
+    if (!result.ok) {
+      alert(result.error);
+      return;
+    }
+    alert(result.message);
+  } catch (err) {
+    alert(translateAuthError(err.message || 'Ошибка отправки'));
+  }
+}
+
+function resetAuthCardHeader() {
+  const title = document.querySelector('.auth-card h1');
+  const subtitle = document.querySelector('.auth-card .subtitle');
+  if (title) title.textContent = 'Учёт параметров бассейна';
+  if (subtitle) subtitle.textContent = 'Войдите или создайте учётную запись';
+}
+
+function showPasswordResetScreen() {
+  pendingPasswordRecovery = true;
+  document.querySelector('.auth-tabs')?.classList.add('hidden');
+  document.getElementById('loginForm')?.classList.add('hidden');
+  document.getElementById('registerForm')?.classList.add('hidden');
+  document.getElementById('forgotForm')?.classList.add('hidden');
+  document.getElementById('newPasswordForm')?.classList.remove('hidden');
+
+  const title = document.querySelector('.auth-card h1');
+  const subtitle = document.querySelector('.auth-card .subtitle');
+  if (title) title.textContent = 'Новый пароль';
+  if (subtitle) subtitle.textContent = 'Задайте новый пароль для входа';
+
+  hideAuthMessages(['newPasswordError', 'newPasswordSuccess']);
+  showAuthScreen();
+}
+
+async function handleUpdatePassword(e) {
+  e.preventDefault();
+  hideAuthMessages(['newPasswordError', 'newPasswordSuccess']);
+
+  const form = e.target;
+  const password = document.getElementById('newPassword').value;
+  const confirm = document.getElementById('newPasswordConfirm').value;
+
+  if (password !== confirm) {
+    showAuthMessage('newPasswordError', 'Пароли не совпадают.');
+    return;
+  }
+
+  setFormLoading(form, true, 'Сохранение...');
+  try {
+    const result = await authUpdatePassword(password);
+    if (!result.ok) {
+      showAuthMessage('newPasswordError', result.error);
+      return;
+    }
+
+    pendingPasswordRecovery = false;
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+
+    const session = await authGetSession();
+    if (session?.user) {
+      currentUser = mapUser(session);
+      document.getElementById('newPasswordForm')?.classList.add('hidden');
+      document.querySelector('.auth-tabs')?.classList.remove('hidden');
+      resetAuthCardHeader();
+      form.reset();
+      await startApp();
+      showMessage(document.getElementById('selectorMessage'), 'Пароль успешно изменён!');
+      return;
+    }
+
+    showAuthMessage('newPasswordSuccess', 'Пароль сохранён! Теперь вой с новым паролем.', 'success');
+    document.getElementById('newPasswordForm')?.classList.add('hidden');
+    document.querySelector('.auth-tabs')?.classList.remove('hidden');
+    resetAuthCardHeader();
+    switchAuthTab('login');
+  } catch (err) {
+    showAuthMessage('newPasswordError', translateAuthError(err.message || 'Ошибка сохранения'));
+  } finally {
+    setFormLoading(form, false);
+  }
+}
+
+function setupSupabaseAuthListener() {
+  sb.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      showPasswordResetScreen();
+    }
+  });
+}
+
+function isPasswordRecoveryUrl() {
+  return window.location.hash.includes('type=recovery');
 }
 
 function showAppScreen() {
@@ -222,7 +343,10 @@ function switchAuthTab(tab) {
   document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
   document.getElementById('registerForm').classList.toggle('hidden', tab !== 'register');
   document.getElementById('forgotForm').classList.toggle('hidden', tab !== 'forgot');
-  ['loginError', 'registerError', 'registerSuccess', 'forgotError', 'forgotSuccess'].forEach(id => {
+  document.getElementById('newPasswordForm').classList.add('hidden');
+  resetAuthCardHeader();
+  document.querySelector('.auth-tabs')?.classList.remove('hidden');
+  ['loginError', 'registerError', 'registerSuccess', 'forgotError', 'forgotSuccess', 'newPasswordError', 'newPasswordSuccess'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.hidden = true;
   });
@@ -349,6 +473,7 @@ async function handleForgot(e) {
 }
 
 async function handleLogout() {
+  closeUserMenu();
   await saveCurrentPoolProblems();
   await authSignOut();
   currentUser = null;
@@ -1239,8 +1364,17 @@ function initAuthListeners() {
   document.getElementById('loginForm').addEventListener('submit', handleLogin);
   document.getElementById('registerForm').addEventListener('submit', handleRegister);
   document.getElementById('forgotForm').addEventListener('submit', handleForgot);
+  document.getElementById('newPasswordForm').addEventListener('submit', handleUpdatePassword);
   document.getElementById('gotoForgotBtn').addEventListener('click', () => switchAuthTab('forgot'));
+  document.getElementById('userMenuBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    toggleUserMenu();
+  });
+  document.getElementById('changePasswordBtn').addEventListener('click', handleChangePassword);
   document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#userMenu')) closeUserMenu();
+  });
 }
 
 function initEventListeners() {
@@ -1265,7 +1399,10 @@ function initEventListeners() {
   });
 
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Escape') {
+      closeModal();
+      closeUserMenu();
+    }
   });
 
   document.getElementById('newPoolVolume').addEventListener('change', e => {
@@ -1561,8 +1698,6 @@ function initEventListeners() {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && poolMap) refreshMapSize();
   });
-
-  window.addEventListener('resize', updateUserLabel);
 }
 
 async function init() {
@@ -1571,10 +1706,17 @@ async function init() {
     return;
   }
 
+  setupSupabaseAuthListener();
   initAuthListeners();
   initEventListeners();
 
   const session = await authGetSession();
+
+  if (pendingPasswordRecovery || isPasswordRecoveryUrl()) {
+    showPasswordResetScreen();
+    return;
+  }
+
   if (session?.user) {
     currentUser = mapUser(session);
     await startApp();

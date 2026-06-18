@@ -111,13 +111,29 @@ async function authSignOut() {
 
 async function authResetPassword(email) {
   const { error } = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-    redirectTo: window.location.origin + window.location.pathname
+    redirectTo: getPasswordResetRedirectUrl()
   });
   if (error) return { ok: false, error: translateAuthError(error.message) };
   return {
     ok: true,
-    message: 'Ссылка для сброса пароля отправлена на ' + email.trim() + '. Проверьте почту и спам.'
+    message: 'Ссылка отправлена на ' + email.trim() + '. Откройте письмо (и папку «Спам»), перейдите по ссылке и задайте новый пароль на сайте.'
   };
+}
+
+async function authUpdatePassword(password) {
+  if (!sb) return { ok: false, error: 'Supabase не подключён. Обновите страницу.' };
+  const { data, error } = await sb.auth.updateUser({ password });
+  if (error) return { ok: false, error: translateAuthError(error.message) };
+  return { ok: true, user: data.user };
+}
+
+function getPasswordResetRedirectUrl() {
+  let path = window.location.pathname;
+  if (path.endsWith('/index.html')) {
+    path = path.slice(0, -'index.html'.length);
+  }
+  if (!path.endsWith('/')) path += '/';
+  return window.location.origin + path;
 }
 
 async function authGetSession() {
@@ -133,6 +149,7 @@ function translateAuthError(msg) {
   if (msg.includes('invalid') && msg.toLowerCase().includes('email')) return 'Некорректный email. Используйте формат name@gmail.com';
   if (msg.includes('rate limit')) return 'Слишком много попыток. Подождите 1–2 минуты и попробуйте снова.';
   if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) return 'Нет связи с сервером. Проверьте интернет.';
+  if (msg.includes('same as the old')) return 'Новый пароль должен отличаться от старого.';
   return msg;
 }
 
