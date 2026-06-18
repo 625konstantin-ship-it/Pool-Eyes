@@ -376,6 +376,85 @@ td.comment-cell {
   color: #4a6a7a;
 }
 
+.location-card {
+  padding: 14px 18px;
+}
+
+.location-compact {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.location-icon-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 2px solid #d8eaf4;
+  border-radius: 10px;
+  background: #f0f8fc;
+  color: #0d4a6b;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.location-icon-btn:hover {
+  background: #e0f0fa;
+  border-color: #1a8fc7;
+}
+
+.location-icon-btn.is-open {
+  background: #0d4a6b;
+  border-color: #0d4a6b;
+  color: #fff;
+}
+
+.location-compact-info {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.location-summary-text {
+  margin: 0 0 4px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #0d4a6b;
+  word-break: break-word;
+}
+
+.location-summary-text.muted {
+  font-weight: 500;
+  color: #6a8a9a;
+}
+
+.location-compact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.location-route-link {
+  font-size: 0.88rem;
+}
+
+.location-details-panel {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e0eef4;
+}
+
+.location-panel-title {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  color: #0d4a6b;
+}
+
 .pool-map {
   height: 280px;
   min-height: 280px;

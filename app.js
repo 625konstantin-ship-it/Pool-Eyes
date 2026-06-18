@@ -73,6 +73,7 @@ let telegramSettings = null;
 let telegramConnectPending = false;
 let telegramPollTimer = null;
 let telegramPanelOpen = false;
+let locationPanelOpen = false;
 let poolEditMode = false;
 const MAP_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const MAP_TILE_FALLBACK_URL = 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png';
@@ -493,6 +494,7 @@ async function handleLogout() {
   measurementHistoryOpen = false;
   telegramSettings = null;
   telegramPanelOpen = false;
+  locationPanelOpen = false;
   destroyCharts();
   destroyPoolMap(true);
   showAuthScreen();
@@ -1130,21 +1132,25 @@ function refreshMapSize() {
 function updateRouteLinks(lat, lng, address) {
   const routeActions = document.getElementById('routeActions');
   const routeLink = document.getElementById('routeGoogle');
-  if (!routeActions || !routeLink) return;
+  const routeCompact = document.getElementById('routeGoogleCompact');
 
+  let href = null;
   if (lat != null && lng != null) {
-    routeActions.classList.remove('hidden');
-    routeLink.href = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    href = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  } else if (address && address.trim()) {
+    href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address.trim())}`;
+  }
+
+  if (href) {
+    routeActions?.classList.remove('hidden');
+    if (routeLink) routeLink.href = href;
+    routeCompact?.classList.remove('hidden');
+    if (routeCompact) routeCompact.href = href;
     return;
   }
 
-  if (address && address.trim()) {
-    routeActions.classList.remove('hidden');
-    routeLink.href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address.trim())}`;
-    return;
-  }
-
-  routeActions.classList.add('hidden');
+  routeActions?.classList.add('hidden');
+  routeCompact?.classList.add('hidden');
 }
 
 function setMapMarker(lat, lng, pan = true) {
@@ -1253,16 +1259,73 @@ function syncRouteFromPool(pool) {
   updateRouteLinks(loc.lat, loc.lng, loc.address);
 }
 
+function updateLocationSummary(pool) {
+  const el = document.getElementById('locationSummaryText');
+  const btn = document.getElementById('toggleLocationBtn');
+  const openLink = document.getElementById('openLocationPanelBtn');
+  if (!el) return;
+
+  const loc = pool?.location || normalizeLocation(null);
+  if (loc.address) {
+    el.textContent = loc.address;
+    el.classList.remove('muted');
+  } else if (loc.lat != null && loc.lng != null) {
+    el.textContent = `${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`;
+    el.classList.remove('muted');
+  } else {
+    el.textContent = 'Локация не указана';
+    el.classList.add('muted');
+  }
+
+  if (btn) {
+    btn.setAttribute('aria-expanded', locationPanelOpen ? 'true' : 'false');
+    btn.classList.toggle('is-open', locationPanelOpen);
+    btn.title = locationPanelOpen ? 'Скрыть карту' : 'Локация бассейна';
+  }
+
+  if (openLink) {
+    openLink.textContent = locationPanelOpen ? 'Скрыть карту' : (loc.address || loc.lat != null ? 'Изменить' : 'Указать на карте');
+  }
+}
+
+function setLocationPanelOpen(open) {
+  locationPanelOpen = open;
+  const panel = document.getElementById('locationDetailsPanel');
+  if (panel) panel.classList.toggle('hidden', !open);
+
+  const pool = getActivePool();
+  if (open && pool) {
+    const poolChanged = lastMapPoolId !== pool.id;
+    if (poolChanged || !poolMap) {
+      lastMapPoolId = pool.id;
+      initPoolMap(pool);
+    } else {
+      refreshMapSize();
+    }
+  } else if (!open) {
+    destroyPoolMap(false);
+  }
+
+  updateLocationSummary(pool);
+}
+
+function toggleLocationPanel() {
+  setLocationPanelOpen(!locationPanelOpen);
+}
+
 function renderLocationUI(pool) {
   const addressInput = document.getElementById('poolAddress');
-  const poolChanged = lastMapPoolId !== pool.id;
 
   if (addressInput) {
     addressInput.value = pool.location?.address || '';
   }
 
   syncRouteFromPool(pool);
+  updateLocationSummary(pool);
 
+  if (!locationPanelOpen) return;
+
+  const poolChanged = lastMapPoolId !== pool.id;
   if (poolChanged || !poolMap) {
     lastMapPoolId = pool.id;
     initPoolMap(pool);
@@ -1338,6 +1401,7 @@ async function savePoolLocation() {
     return false;
   }
   syncRouteFromPool(pool);
+  updateLocationSummary(pool);
   updateLocationStatus(pool.location.address || `Сохранено: ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`);
   document.getElementById('activePoolMeta').textContent = formatPoolMeta(
     pool,
@@ -2080,6 +2144,12 @@ function initEventListeners() {
 
   document.getElementById('exportPdfBtn').addEventListener('click', handleExportPdf);
 
+  document.getElementById('toggleLocationBtn')?.addEventListener('click', toggleLocationPanel);
+  document.getElementById('openLocationPanelBtn')?.addEventListener('click', () => {
+    if (!locationPanelOpen) setLocationPanelOpen(true);
+    else setLocationPanelOpen(false);
+  });
+
   document.getElementById('geocodeBtn').addEventListener('click', async () => {
     const address = document.getElementById('poolAddress').value.trim();
     if (!address) {
@@ -2137,7 +2207,7 @@ function initEventListeners() {
   });
 
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && poolMap) refreshMapSize();
+    if (!document.hidden && poolMap && locationPanelOpen) refreshMapSize();
   });
 }
 
