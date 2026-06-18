@@ -347,3 +347,5 @@ const I18N_ES = {
   'norm.peroxideIdeal': '30–75 mg/L',
   'norm.tempIdeal': '24–28 °C'
 };
+
+if (typeof window !== 'undefined') window.I18N_ES = I18N_ES;

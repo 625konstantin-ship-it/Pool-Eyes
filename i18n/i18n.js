@@ -1,8 +1,16 @@
 const LANG_STORAGE_KEY = 'poolAppLang';
 const SUPPORTED_LANGS = ['ru', 'en', 'es'];
+const I18N_SCRIPT_VERSION = '3';
+
+const LANG_SCRIPT_BUNDLES = {
+  ru: [`i18n/ru.js?v=${I18N_SCRIPT_VERSION}`, `i18n/pool-problems-ru.js?v=${I18N_SCRIPT_VERSION}`],
+  en: [`i18n/en.js?v=${I18N_SCRIPT_VERSION}`, `i18n/pool-problems-en.js?v=${I18N_SCRIPT_VERSION}`],
+  es: [`i18n/es.js?v=${I18N_SCRIPT_VERSION}`, `i18n/pool-problems-es.js?v=${I18N_SCRIPT_VERSION}`]
+};
 
 let currentLang = 'ru';
 const langChangeListeners = [];
+const langScriptLoads = {};
 
 function getStoredLang() {
   try {
@@ -14,10 +22,57 @@ function getStoredLang() {
   return 'ru';
 }
 
+function langBundleReady(lang) {
+  if (lang === 'en') return typeof I18N_EN !== 'undefined' || Boolean(window.I18N_EN);
+  if (lang === 'es') return typeof I18N_ES !== 'undefined' || Boolean(window.I18N_ES);
+  return typeof I18N_RU !== 'undefined' || Boolean(window.I18N_RU);
+}
+
+function loadLangScript(src) {
+  const base = src.split('?')[0].replace(/^\.\//, '');
+  const already = Array.from(document.scripts).find(script => script.src.includes(base));
+  if (already) {
+    return langScriptLoads[src] || Promise.resolve();
+  }
+
+  if (langScriptLoads[src]) return langScriptLoads[src];
+
+  langScriptLoads[src] = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = false;
+    script.addEventListener('load', () => {
+      script.setAttribute('data-loaded', 'true');
+      resolve();
+    }, { once: true });
+    script.addEventListener('error', () => reject(new Error(`Failed to load ${src}`)), { once: true });
+    document.head.appendChild(script);
+  });
+
+  return langScriptLoads[src];
+}
+
+async function ensureLangBundle(lang) {
+  if (langBundleReady(lang)) return true;
+  const bundle = LANG_SCRIPT_BUNDLES[lang];
+  if (!bundle) return false;
+  try {
+    for (const src of bundle) await loadLangScript(src);
+  } catch (err) {
+    console.error('ensureLangBundle', lang, err);
+    return false;
+  }
+  return langBundleReady(lang);
+}
+
 function getTranslations(lang) {
-  if (lang === 'en') return typeof I18N_EN !== 'undefined' ? I18N_EN : {};
-  if (lang === 'es') return typeof I18N_ES !== 'undefined' ? I18N_ES : {};
-  return typeof I18N_RU !== 'undefined' ? I18N_RU : {};
+  if (lang === 'en') {
+    return typeof I18N_EN !== 'undefined' ? I18N_EN : (window.I18N_EN || {});
+  }
+  if (lang === 'es') {
+    return typeof I18N_ES !== 'undefined' ? I18N_ES : (window.I18N_ES || {});
+  }
+  return typeof I18N_RU !== 'undefined' ? I18N_RU : (window.I18N_RU || {});
 }
 
 function getLang() {
@@ -46,14 +101,17 @@ function t(key, params) {
 }
 
 function getPoolProblems() {
-  if (currentLang === 'en' && typeof POOL_PROBLEMS_EN !== 'undefined') {
-    return POOL_PROBLEMS_EN;
+  if (currentLang === 'en') {
+    if (typeof POOL_PROBLEMS_EN !== 'undefined') return POOL_PROBLEMS_EN;
+    if (window.POOL_PROBLEMS_EN) return window.POOL_PROBLEMS_EN;
   }
-  if (currentLang === 'es' && typeof POOL_PROBLEMS_ES !== 'undefined') {
-    return POOL_PROBLEMS_ES;
+  if (currentLang === 'es') {
+    if (typeof POOL_PROBLEMS_ES !== 'undefined') return POOL_PROBLEMS_ES;
+    if (window.POOL_PROBLEMS_ES) return window.POOL_PROBLEMS_ES;
   }
   if (typeof POOL_PROBLEMS_RU !== 'undefined') return POOL_PROBLEMS_RU;
-  return typeof POOL_PROBLEMS_EN !== 'undefined' ? POOL_PROBLEMS_EN : [];
+  if (window.POOL_PROBLEMS_RU) return window.POOL_PROBLEMS_RU;
+  return typeof POOL_PROBLEMS_EN !== 'undefined' ? POOL_PROBLEMS_EN : (window.POOL_PROBLEMS_EN || []);
 }
 
 function translateChemicalName(name) {
@@ -142,18 +200,24 @@ function updateLangSwitcherUI() {
 }
 
 function setLang(lang, { skipReload } = {}) {
-  if (!SUPPORTED_LANGS.includes(lang)) return;
-  currentLang = lang;
-  try { localStorage.setItem(LANG_STORAGE_KEY, lang); } catch { /* ignore */ }
-  document.documentElement.lang = lang;
-  applyTranslations();
-  updateLangSwitcherUI();
-  langChangeListeners.forEach(fn => {
-    try { fn(currentLang); } catch (err) { console.error('languagechange listener', err); }
+  if (!SUPPORTED_LANGS.includes(lang)) return Promise.resolve(false);
+
+  return ensureLangBundle(lang).then(ready => {
+    if (!ready) return false;
+
+    currentLang = lang;
+    try { localStorage.setItem(LANG_STORAGE_KEY, lang); } catch { /* ignore */ }
+    document.documentElement.lang = lang;
+    applyTranslations();
+    updateLangSwitcherUI();
+    langChangeListeners.forEach(fn => {
+      try { fn(currentLang); } catch (err) { console.error('languagechange listener', err); }
+    });
+    if (!skipReload) {
+      window.dispatchEvent(new CustomEvent('languagechange', { detail: { lang: currentLang } }));
+    }
+    return true;
   });
-  if (!skipReload) {
-    window.dispatchEvent(new CustomEvent('languagechange', { detail: { lang: currentLang } }));
-  }
 }
 
 function onLangChange(fn) {
@@ -163,25 +227,26 @@ function onLangChange(fn) {
 function initI18n() {
   currentLang = getStoredLang();
   document.documentElement.lang = currentLang;
-  applyTranslations();
-  updateLangSwitcherUI();
+  ensureLangBundle(currentLang).finally(() => {
+    applyTranslations();
+    updateLangSwitcherUI();
+    window.dispatchEvent(new CustomEvent('languagechange', { detail: { lang: currentLang } }));
+  });
 
-  document.querySelectorAll('.lang-switcher').forEach(switcher => {
-    switcher.querySelectorAll('.lang-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (btn.dataset.lang && btn.dataset.lang !== currentLang) {
-          setLang(btn.dataset.lang);
-        }
-      });
-    });
+  document.addEventListener('click', event => {
+    const btn = event.target.closest('.lang-btn');
+    if (!btn?.dataset?.lang || btn.dataset.lang === currentLang) return;
+    void setLang(btn.dataset.lang);
   });
 
   window.addEventListener('pageshow', () => {
     currentLang = getStoredLang();
     document.documentElement.lang = currentLang;
-    applyTranslations();
-    updateLangSwitcherUI();
-    window.dispatchEvent(new CustomEvent('languagechange', { detail: { lang: currentLang } }));
+    ensureLangBundle(currentLang).finally(() => {
+      applyTranslations();
+      updateLangSwitcherUI();
+      window.dispatchEvent(new CustomEvent('languagechange', { detail: { lang: currentLang } }));
+    });
   });
 }
 

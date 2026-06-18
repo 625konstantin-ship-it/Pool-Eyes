@@ -2524,7 +2524,10 @@ document.addEventListener('DOMContentLoaded', init);
 
 function isLocalDevHost() {
   const host = window.location.hostname;
-  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+  if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return true;
+  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
+  return false;
 }
 
 function registerServiceWorker() {
@@ -2553,7 +2556,7 @@ function registerServiceWorker() {
   const checkForSwUpdate = () => swRegistration?.update().catch(() => {});
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=27')
+    navigator.serviceWorker.register('./sw.js?v=28')
       .then(reg => {
         swRegistration = reg;
         if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });

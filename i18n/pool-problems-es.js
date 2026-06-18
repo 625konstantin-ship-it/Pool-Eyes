@@ -41,3 +41,5 @@ const POOL_PROBLEMS_ES = [
     { level: 'warn', title: 'Irritación', text: 'Lo más frecuente es pH fuera de 7.2–7.6. Mida pH y cloro libre.' }
   ]}
 ];
+
+if (typeof window !== 'undefined') window.POOL_PROBLEMS_ES = POOL_PROBLEMS_ES;

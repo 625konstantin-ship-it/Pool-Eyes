@@ -1,4 +1,4 @@
-const CACHE = 'pool-eyes-v27';
+const CACHE = 'pool-eyes-v28';
 
 const SHELL = [
   './',
@@ -115,6 +115,13 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
+
+  if (url.pathname.includes('/i18n/')) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' }).catch(() => matchCached(event.request))
+    );
+    return;
+  }
 
   if (isNavigationRequest(event.request)) {
     event.respondWith(
