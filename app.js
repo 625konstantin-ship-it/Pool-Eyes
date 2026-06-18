@@ -59,6 +59,7 @@ let poolList = [];
 let activePoolId = null;
 let measurements = [];
 let chemistryLog = [];
+let poolPhotos = [];
 let selectedProblems = {};
 let charts = { ph: null, chlorine: null, temp: null };
 let isUpdatingUI = false;
@@ -110,6 +111,7 @@ async function loadUserData() {
   poolList = data.poolList;
   measurements = data.measurements;
   chemistryLog = data.chemistryLog;
+  poolPhotos = data.poolPhotos || [];
   selectedProblems = data.selectedProblems;
   activePoolId = storageGet(activePoolKey()) || null;
   normalizeStoredData();
@@ -354,6 +356,7 @@ async function handleLogout() {
   activePoolId = null;
   measurements = [];
   chemistryLog = [];
+  poolPhotos = [];
   selectedProblems = {};
   measurementHistoryOpen = false;
   destroyCharts();
@@ -967,6 +970,100 @@ function renderChemistryHistory(poolChem) {
   }).join('');
 }
 
+function getPoolPhotos(poolId) {
+  return poolPhotos.filter(p => p.poolId === poolId);
+}
+
+async function renderPhotoGallery(poolId) {
+  const gallery = document.getElementById('photoGallery');
+  const empty = document.getElementById('emptyPhotos');
+  if (!gallery || !empty) return;
+
+  const photos = getPoolPhotos(poolId);
+  if (photos.length === 0) {
+    gallery.innerHTML = '';
+    empty.hidden = false;
+    return;
+  }
+
+  empty.hidden = true;
+  gallery.innerHTML = photos.map(p => {
+    const date = new Date(p.date).toLocaleString('ru-RU', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+    const caption = p.caption ? escapeHtml(p.caption) : '';
+    return `
+      <figure class="photo-item" data-photo-id="${p.id}">
+        <div class="photo-thumb loading">Загрузка...</div>
+        <figcaption>
+          ${caption ? `<span class="photo-caption">${caption}</span>` : ''}
+          <span class="photo-date">${date}</span>
+        </figcaption>
+        <button type="button" class="photo-delete btn btn-danger btn-small" data-photo-id="${p.id}">Удалить</button>
+      </figure>`;
+  }).join('');
+
+  await Promise.all(photos.map(async photo => {
+    try {
+      const url = await dbGetPhotoUrl(photo.storagePath);
+      const thumb = gallery.querySelector(`[data-photo-id="${photo.id}"] .photo-thumb`);
+      if (thumb) {
+        thumb.classList.remove('loading');
+        thumb.innerHTML = `<a href="${url}" target="_blank" rel="noopener noreferrer"><img src="${url}" alt="Фото бассейна" loading="lazy"></a>`;
+      }
+    } catch {
+      const thumb = gallery.querySelector(`[data-photo-id="${photo.id}"] .photo-thumb`);
+      if (thumb) {
+        thumb.classList.remove('loading');
+        thumb.textContent = 'Не удалось загрузить';
+      }
+    }
+  }));
+}
+
+async function handlePhotoSelected(e) {
+  const file = e.target.files?.[0];
+  e.target.value = '';
+  if (!file || !currentUser) return;
+
+  const pool = getActivePool();
+  if (!pool) return;
+
+  const statusEl = document.getElementById('photoUploadStatus');
+  const caption = document.getElementById('photoCaption')?.value || '';
+
+  if (statusEl) statusEl.textContent = 'Загрузка...';
+
+  try {
+    const saved = await dbUploadPhoto(currentUser.id, pool.id, file, caption);
+    poolPhotos.unshift(saved);
+    const captionInput = document.getElementById('photoCaption');
+    if (captionInput) captionInput.value = '';
+    await renderPhotoGallery(pool.id);
+    if (statusEl) statusEl.textContent = 'Фото сохранено!';
+    showMessage(document.getElementById('selectorMessage'), 'Фото добавлено!');
+  } catch (err) {
+    const msg = err.message || 'Ошибка загрузки фото';
+    if (statusEl) statusEl.textContent = msg;
+    alert(msg);
+  }
+}
+
+async function handleDeletePhoto(photoId) {
+  const photo = poolPhotos.find(p => p.id === photoId);
+  if (!photo || !confirm('Удалить это фото?')) return;
+
+  try {
+    await dbDeletePhoto(photo);
+    poolPhotos = poolPhotos.filter(p => p.id !== photoId);
+    await renderPhotoGallery(activePoolId);
+    showMessage(document.getElementById('selectorMessage'), 'Фото удалено.');
+  } catch (err) {
+    await handleDbError(err, 'deletePhoto');
+  }
+}
+
 function renderPoolContent() {
   const pool = getActivePool();
   const content = document.getElementById('poolContent');
@@ -997,6 +1094,7 @@ function renderPoolContent() {
   renderProblemsGrid();
   renderProblemRecommendations(selectedProblems[pool.id] || []);
   renderChemistryHistory(poolChem);
+  renderPhotoGallery(pool.id);
 
   if (poolMeas.length > 0) {
     const latest = poolMeas[0];
@@ -1229,6 +1327,7 @@ function initEventListeners() {
       poolList = poolList.filter(p => p.id !== deletedId);
       measurements = measurements.filter(m => m.poolId !== deletedId);
       chemistryLog = chemistryLog.filter(c => c.poolId !== deletedId);
+      poolPhotos = poolPhotos.filter(p => p.poolId !== deletedId);
       delete selectedProblems[deletedId];
       activePoolId = poolList[0].id;
       saveActivePoolId();
@@ -1291,6 +1390,15 @@ function initEventListeners() {
     } catch (err) {
       await handleDbError(err, 'saveTreatment');
     }
+  });
+
+  document.getElementById('photoPickBtn').addEventListener('click', () => {
+    document.getElementById('photoInput').click();
+  });
+  document.getElementById('photoInput').addEventListener('change', handlePhotoSelected);
+  document.getElementById('photoGallery').addEventListener('click', e => {
+    const btn = e.target.closest('.photo-delete');
+    if (btn?.dataset.photoId) handleDeletePhoto(btn.dataset.photoId);
   });
 
   document.getElementById('toggleMeasurementHistoryBtn').addEventListener('click', toggleMeasurementHistory);

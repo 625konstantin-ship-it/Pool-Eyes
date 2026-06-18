@@ -1,5 +1,9 @@
 let sb = null;
 
+const PHOTO_BUCKET = 'pool-photos';
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
 function isSupabaseConfigured() {
   return typeof SUPABASE_URL === 'string'
     && typeof SUPABASE_ANON_KEY === 'string'
@@ -58,6 +62,16 @@ function mapChemistryRow(row) {
     unit: row.unit || 'г',
     comment: row.comment || '',
     date: row.logged_at
+  };
+}
+
+function mapPhotoRow(row) {
+  return {
+    id: row.id,
+    poolId: row.pool_id,
+    storagePath: row.storage_path,
+    caption: row.caption || '',
+    date: row.created_at
   };
 }
 
@@ -123,15 +137,17 @@ function translateAuthError(msg) {
 }
 
 async function dbLoadUserData(userId) {
-  const [poolsRes, measRes, chemRes] = await Promise.all([
+  const [poolsRes, measRes, chemRes, photosRes] = await Promise.all([
     sb.from('pools').select('*').eq('user_id', userId).order('created_at'),
     sb.from('measurements').select('*').eq('user_id', userId).order('measured_at', { ascending: false }),
-    sb.from('chemistry_log').select('*').eq('user_id', userId).order('logged_at', { ascending: false })
+    sb.from('chemistry_log').select('*').eq('user_id', userId).order('logged_at', { ascending: false }),
+    sb.from('pool_photos').select('*').eq('user_id', userId).order('created_at', { ascending: false })
   ]);
 
   if (poolsRes.error) throw poolsRes.error;
   if (measRes.error) throw measRes.error;
   if (chemRes.error) throw chemRes.error;
+  if (photosRes.error) throw photosRes.error;
 
   const selectedProblems = {};
   const poolList = (poolsRes.data || []).map(row => {
@@ -143,6 +159,7 @@ async function dbLoadUserData(userId) {
     poolList,
     measurements: (measRes.data || []).map(mapMeasurementRow),
     chemistryLog: (chemRes.data || []).map(mapChemistryRow),
+    poolPhotos: (photosRes.data || []).map(mapPhotoRow),
     selectedProblems
   };
 }
@@ -161,6 +178,10 @@ async function dbUpsertPool(userId, pool, problemIds) {
 }
 
 async function dbDeletePool(poolId) {
+  const { data: photos } = await sb.from('pool_photos').select('storage_path').eq('pool_id', poolId);
+  if (photos?.length) {
+    await sb.storage.from(PHOTO_BUCKET).remove(photos.map(p => p.storage_path));
+  }
   const { error } = await sb.from('pools').delete().eq('id', poolId);
   if (error) throw error;
 }
@@ -217,4 +238,52 @@ async function dbCreateDefaultPool(userId) {
   const { data, error } = await sb.from('pools').insert(pool).select().single();
   if (error) throw error;
   return mapPoolRow(data);
+}
+
+async function dbGetPhotoUrl(storagePath) {
+  const { data, error } = await sb.storage.from(PHOTO_BUCKET).createSignedUrl(storagePath, 3600);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+async function dbUploadPhoto(userId, poolId, file, caption) {
+  if (!ALLOWED_PHOTO_TYPES.includes(file.type)) {
+    throw new Error('Формат не поддерживается. Используйте JPG, PNG или WebP.');
+  }
+  if (file.size > MAX_PHOTO_BYTES) {
+    throw new Error('Файл слишком большой. Максимум 5 МБ.');
+  }
+
+  const photoId = crypto.randomUUID();
+  const extMap = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+  const ext = extMap[file.type] || 'jpg';
+  const storagePath = `${userId}/${poolId}/${photoId}.${ext}`;
+
+  const { error: uploadError } = await sb.storage.from(PHOTO_BUCKET).upload(storagePath, file, {
+    contentType: file.type,
+    upsert: false
+  });
+  if (uploadError) throw uploadError;
+
+  const { data, error } = await sb.from('pool_photos').insert({
+    id: photoId,
+    user_id: userId,
+    pool_id: poolId,
+    storage_path: storagePath,
+    caption: (caption || '').trim()
+  }).select().single();
+
+  if (error) {
+    await sb.storage.from(PHOTO_BUCKET).remove([storagePath]);
+    throw error;
+  }
+
+  return mapPhotoRow(data);
+}
+
+async function dbDeletePhoto(photo) {
+  const { error: storageError } = await sb.storage.from(PHOTO_BUCKET).remove([photo.storagePath]);
+  if (storageError) throw storageError;
+  const { error } = await sb.from('pool_photos').delete().eq('id', photo.id);
+  if (error) throw error;
 }

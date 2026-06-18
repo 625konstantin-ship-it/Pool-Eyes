@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Учёт параметров бассейна</title>
-  <link rel="stylesheet" href="styles.css?v=6">
+  <link rel="stylesheet" href="styles.css?v=7">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
@@ -144,6 +144,22 @@
           <span class="route-label">Маршрут до бассейна:</span>
           <a id="routeGoogle" class="btn btn-secondary btn-small" target="_blank" rel="noopener noreferrer">Google Maps — маршрут</a>
         </div>
+      </section>
+
+      <section class="card">
+        <h2>Фото бассейна</h2>
+        <p class="hint">Состояние воды, оборудование, тест-полоски. JPG или PNG, до 5 МБ. Фото хранятся в Supabase и видны с любого устройства.</p>
+        <div class="photo-upload">
+          <input type="file" id="photoInput" accept="image/jpeg,image/png,image/webp" capture="environment" hidden>
+          <button type="button" id="photoPickBtn" class="btn btn-primary">Добавить фото</button>
+          <div class="field photo-caption-field">
+            <label for="photoCaption">Подпись (необязательно)</label>
+            <input type="text" id="photoCaption" maxlength="120" placeholder="Например: мутная вода после дождя">
+          </div>
+        </div>
+        <p id="photoUploadStatus" class="hint photo-upload-status"></p>
+        <div id="photoGallery" class="photo-gallery"></div>
+        <p id="emptyPhotos" class="empty">Пока нет фото для этого бассейна.</p>
       </section>
 
       <section class="card">
@@ -330,9 +346,9 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="config.js"></script>
-  <script src="supabase-db.js"></script>
+  <script src="supabase-db.js?v=7"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>
