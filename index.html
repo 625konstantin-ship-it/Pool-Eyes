@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Учёт параметров бассейна</title>
-  <link rel="stylesheet" href="styles.css?v=12">
+  <link rel="stylesheet" href="styles.css?v=13">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
@@ -119,6 +119,43 @@
         <button type="button" id="deletePoolBtn" class="btn btn-danger" disabled>Удалить</button>
       </div>
       <p id="selectorMessage" class="message" hidden></p>
+    </section>
+
+    <section class="card telegram-reminders" id="telegramRemindersCard">
+      <h2>Telegram-напоминания</h2>
+      <p class="hint">Бот пришлёт сообщение, когда пора проверить показатели воды или записать обслуживание бассейна.</p>
+      <p id="telegramBotMissing" class="message warn hidden">Telegram-бот ещё не настроен. См. TELEGRAM_SETUP.md</p>
+      <div id="telegramPanel" class="telegram-panel hidden">
+        <p id="telegramConnectionStatus" class="telegram-status"></p>
+        <div class="telegram-actions">
+          <button type="button" id="connectTelegramBtn" class="btn btn-primary">Подключить Telegram</button>
+          <button type="button" id="checkTelegramBtn" class="btn btn-secondary hidden">Проверить подключение</button>
+          <button type="button" id="disconnectTelegramBtn" class="btn btn-danger btn-small hidden">Отключить</button>
+        </div>
+        <form id="telegramSettingsForm" class="telegram-settings hidden">
+          <label class="telegram-toggle">
+            <input type="checkbox" id="remindersEnabled">
+            <span>Включить напоминания</span>
+          </label>
+          <div class="field">
+            <label for="reminderInterval">Напоминать, если нет записей</label>
+            <select id="reminderInterval">
+              <option value="3">3 дня</option>
+              <option value="5">5 дней</option>
+              <option value="7" selected>7 дней</option>
+              <option value="14">14 дней</option>
+              <option value="30">30 дней</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="reminderHour">Время сообщения</label>
+            <select id="reminderHour"></select>
+          </div>
+          <p class="hint telegram-settings-hint">Проверяются измерения воды и записи о химии/работах по каждому бассейну.</p>
+          <button type="submit" class="btn btn-primary">Сохранить настройки</button>
+        </form>
+        <p id="telegramSettingsMessage" class="message" hidden></p>
+      </div>
     </section>
 
     <div id="poolContent" class="hidden">
@@ -374,11 +411,11 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="config.js"></script>
-  <script src="supabase-db.js?v=10"></script>
+  <script src="supabase-db.js?v=11"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.min.js"></script>
-  <script src="app.js?v=11"></script>
+  <script src="app.js?v=12"></script>
 </body>
 </html>

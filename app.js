@@ -69,6 +69,7 @@ let lastMapPoolId = null;
 let mapInitRetries = 0;
 let measurementHistoryOpen = false;
 let pendingPasswordRecovery = false;
+let telegramSettings = null;
 const MAP_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const MAP_TILE_FALLBACK_URL = 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png';
 const LEAFLET_ICON_BASE = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/';
@@ -484,6 +485,7 @@ async function handleLogout() {
   poolPhotos = [];
   selectedProblems = {};
   measurementHistoryOpen = false;
+  telegramSettings = null;
   destroyCharts();
   destroyPoolMap(true);
   showAuthScreen();
@@ -537,6 +539,7 @@ async function startApp() {
     await loadUserData();
     showAppScreen();
     renderPoolSelect();
+    await loadTelegramSettings();
     await setActivePool(activePoolId);
   } catch (err) {
     await handleDbError(err, 'loadUserData');
@@ -746,6 +749,153 @@ function handleExportPdf() {
   }).download(filename);
 
   showMessage(document.getElementById('selectorMessage'), 'PDF отчёт скачивается…');
+}
+
+function isTelegramBotConfigured() {
+  return typeof TELEGRAM_BOT_USERNAME === 'string'
+    && TELEGRAM_BOT_USERNAME.length > 2
+    && TELEGRAM_BOT_USERNAME !== 'YourPoolBot';
+}
+
+function populateReminderHourSelect() {
+  const select = document.getElementById('reminderHour');
+  if (!select || select.options.length > 0) return;
+  for (let h = 7; h <= 21; h++) {
+    const opt = document.createElement('option');
+    opt.value = String(h);
+    opt.textContent = `${String(h).padStart(2, '0')}:00`;
+    if (h === 9) opt.selected = true;
+    select.appendChild(opt);
+  }
+}
+
+function showTelegramMessage(text, type = 'success') {
+  const el = document.getElementById('telegramSettingsMessage');
+  if (el) showMessage(el, text, type);
+}
+
+function renderTelegramRemindersUI() {
+  const panel = document.getElementById('telegramPanel');
+  const missing = document.getElementById('telegramBotMissing');
+  if (!isTelegramBotConfigured()) {
+    missing?.classList.remove('hidden');
+    panel?.classList.add('hidden');
+    return;
+  }
+  missing?.classList.add('hidden');
+  panel?.classList.remove('hidden');
+
+  const connected = !!telegramSettings?.telegramChatId;
+  const statusEl = document.getElementById('telegramConnectionStatus');
+  const connectBtn = document.getElementById('connectTelegramBtn');
+  const checkBtn = document.getElementById('checkTelegramBtn');
+  const disconnectBtn = document.getElementById('disconnectTelegramBtn');
+  const form = document.getElementById('telegramSettingsForm');
+
+  if (statusEl) {
+    statusEl.textContent = connected
+      ? 'Telegram подключён'
+      : 'Telegram не подключён — нажмите кнопку ниже и откройте бота.';
+    statusEl.className = connected ? 'telegram-status connected' : 'telegram-status';
+  }
+
+  connectBtn?.classList.toggle('hidden', connected);
+  checkBtn?.classList.toggle('hidden', connected);
+  disconnectBtn?.classList.toggle('hidden', !connected);
+  form?.classList.toggle('hidden', !connected);
+
+  if (!connected || !telegramSettings) return;
+
+  document.getElementById('remindersEnabled').checked = telegramSettings.remindersEnabled;
+  document.getElementById('reminderInterval').value = String(telegramSettings.reminderIntervalDays);
+  document.getElementById('reminderHour').value = String(telegramSettings.reminderHour);
+}
+
+async function loadTelegramSettings() {
+  if (!currentUser || !isTelegramBotConfigured()) {
+    renderTelegramRemindersUI();
+    return;
+  }
+  try {
+    telegramSettings = await dbEnsureTelegramSettings(currentUser.id);
+    renderTelegramRemindersUI();
+  } catch (err) {
+    console.error('telegram settings', err);
+    showTelegramMessage('Не удалось загрузить настройки Telegram. Выполните supabase/telegram.sql', 'error');
+  }
+}
+
+async function handleConnectTelegram() {
+  if (!currentUser) return;
+  try {
+    const { token } = await dbCreateTelegramLinkToken(currentUser.id);
+    const url = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${token}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+    showTelegramMessage('Откройте Telegram, нажмите Start. Затем «Проверить подключение».', 'info');
+  } catch (err) {
+    showTelegramMessage(err.message || 'Ошибка создания ссылки', 'error');
+  }
+}
+
+async function handleCheckTelegram() {
+  if (!currentUser) return;
+  try {
+    telegramSettings = await dbGetTelegramSettings(currentUser.id);
+    renderTelegramRemindersUI();
+    if (telegramSettings?.telegramChatId) {
+      showTelegramMessage('Telegram подключён! Настройте интервал и включите напоминания.', 'success');
+    } else {
+      showTelegramMessage('Пока не подключено. Нажмите Start в боте.', 'warn');
+    }
+  } catch (err) {
+    showTelegramMessage(err.message || 'Ошибка проверки', 'error');
+  }
+}
+
+async function handleDisconnectTelegram() {
+  if (!currentUser || !confirm('Отключить Telegram? Напоминания перестанут приходить.')) return;
+  try {
+    telegramSettings = await dbSaveTelegramSettings(currentUser.id, {
+      telegramChatId: null,
+      remindersEnabled: false,
+      clearLinkToken: true
+    });
+    renderTelegramRemindersUI();
+    showTelegramMessage('Telegram отключён.', 'success');
+  } catch (err) {
+    showTelegramMessage(err.message || 'Ошибка отключения', 'error');
+  }
+}
+
+async function handleSaveTelegramSettings(e) {
+  e.preventDefault();
+  if (!currentUser || !telegramSettings?.telegramChatId) return;
+
+  const remindersEnabled = document.getElementById('remindersEnabled').checked;
+  const reminderIntervalDays = parseInt(document.getElementById('reminderInterval').value, 10);
+  const reminderHour = parseInt(document.getElementById('reminderHour').value, 10);
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Kyiv';
+
+  try {
+    telegramSettings = await dbSaveTelegramSettings(currentUser.id, {
+      remindersEnabled,
+      reminderIntervalDays,
+      reminderHour,
+      timezone
+    });
+    showTelegramMessage('Настройки сохранены. Бот будет писать по расписанию.', 'success');
+  } catch (err) {
+    showTelegramMessage(err.message || 'Ошибка сохранения', 'error');
+  }
+}
+
+function initTelegramReminders() {
+  populateReminderHourSelect();
+  document.getElementById('connectTelegramBtn')?.addEventListener('click', handleConnectTelegram);
+  document.getElementById('checkTelegramBtn')?.addEventListener('click', handleCheckTelegram);
+  document.getElementById('disconnectTelegramBtn')?.addEventListener('click', handleDisconnectTelegram);
+  document.getElementById('telegramSettingsForm')?.addEventListener('submit', handleSaveTelegramSettings);
+  renderTelegramRemindersUI();
 }
 
 function showMessage(el, text, type = 'success') {
@@ -1858,6 +2008,7 @@ async function init() {
 
   setupSupabaseAuthListener();
   initAuthListeners();
+  initTelegramReminders();
   initEventListeners();
 
   const session = await authGetSession();

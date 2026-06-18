@@ -304,3 +304,85 @@ async function dbDeletePhoto(photo) {
   const { error } = await sb.from('pool_photos').delete().eq('id', photo.id);
   if (error) throw error;
 }
+
+function mapTelegramSettings(row) {
+  if (!row) return null;
+  return {
+    telegramChatId: row.telegram_chat_id,
+    remindersEnabled: !!row.reminders_enabled,
+    reminderIntervalDays: Number(row.reminder_interval_days) || 7,
+    reminderHour: Number(row.reminder_hour) ?? 9,
+    timezone: row.timezone || 'Europe/Kyiv',
+    lastReminderSentAt: row.last_reminder_sent_at
+  };
+}
+
+async function dbGetTelegramSettings(userId) {
+  const { data, error } = await sb
+    .from('user_telegram_settings')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return mapTelegramSettings(data);
+}
+
+async function dbEnsureTelegramSettings(userId) {
+  let settings = await dbGetTelegramSettings(userId);
+  if (settings) return settings;
+
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Kyiv';
+  const { data, error } = await sb.from('user_telegram_settings').insert({
+    user_id: userId,
+    reminders_enabled: false,
+    reminder_interval_days: 7,
+    reminder_hour: 9,
+    timezone
+  }).select().single();
+
+  if (error) throw error;
+  return mapTelegramSettings(data);
+}
+
+async function dbSaveTelegramSettings(userId, patch) {
+  await dbEnsureTelegramSettings(userId);
+  const payload = {};
+  if (patch.remindersEnabled !== undefined) payload.reminders_enabled = patch.remindersEnabled;
+  if (patch.reminderIntervalDays !== undefined) payload.reminder_interval_days = patch.reminderIntervalDays;
+  if (patch.reminderHour !== undefined) payload.reminder_hour = patch.reminderHour;
+  if (patch.timezone !== undefined) payload.timezone = patch.timezone;
+  if (patch.telegramChatId !== undefined) payload.telegram_chat_id = patch.telegramChatId;
+  if (patch.clearLinkToken) {
+    payload.link_token = null;
+    payload.link_token_expires_at = null;
+  }
+
+  const { data, error } = await sb
+    .from('user_telegram_settings')
+    .update(payload)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return mapTelegramSettings(data);
+}
+
+async function dbCreateTelegramLinkToken(userId) {
+  await dbEnsureTelegramSettings(userId);
+  const token = crypto.randomUUID().replace(/-/g, '');
+  const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await sb
+    .from('user_telegram_settings')
+    .update({
+      link_token: token,
+      link_token_expires_at: expires
+    })
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return { token, settings: mapTelegramSettings(data) };
+}
