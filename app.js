@@ -66,7 +66,8 @@ let poolMap = null;
 let poolMarker = null;
 let lastMapPoolId = null;
 let mapInitRetries = 0;
-const MAP_TILE_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+const MAP_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+const MAP_TILE_FALLBACK_URL = 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png';
 const LEAFLET_ICON_BASE = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/';
 const DEFAULT_MAP_CENTER = [50.4501, 30.5234];
 const NOMINATIM_HEADERS = { 'Accept-Language': 'ru', 'User-Agent': 'PoolTracker/1.0 (local pool app)' };
@@ -527,6 +528,30 @@ function getMarkerCoords() {
   return { lat: pos.lat, lng: pos.lng };
 }
 
+function addPoolMapTiles(map) {
+  const osm = L.tileLayer(MAP_TILE_URL, {
+    subdomains: 'abc',
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  });
+  const osmFallback = L.tileLayer(MAP_TILE_FALLBACK_URL, {
+    subdomains: 'abc',
+    maxZoom: 20,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  });
+
+  let tileErrors = 0;
+  osm.on('tileerror', () => {
+    tileErrors += 1;
+    if (tileErrors >= 4 && map.hasLayer(osm)) {
+      map.removeLayer(osm);
+      osmFallback.addTo(map);
+    }
+  });
+
+  osm.addTo(map);
+}
+
 function initPoolMap(pool) {
   const mapEl = document.getElementById('poolMap');
   if (!mapEl) return;
@@ -554,11 +579,7 @@ function initPoolMap(pool) {
 
   try {
     poolMap = L.map(mapEl, { scrollWheelZoom: true }).setView(center, zoom);
-    L.tileLayer(MAP_TILE_URL, {
-      subdomains: 'abcd',
-      maxZoom: 20,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
-    }).addTo(poolMap);
+    addPoolMapTiles(poolMap);
 
     if (hasCoords) {
       setMapMarker(loc.lat, loc.lng, false);
@@ -624,7 +645,7 @@ async function geocodeAddress(address) {
   } catch { /* fallback */ }
 
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&countrycodes=ua`;
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&countrycodes=ua&accept-language=ru`;
     const res = await fetch(url, { headers: NOMINATIM_HEADERS });
     if (!res.ok) return null;
     const data = await res.json();
@@ -640,7 +661,7 @@ async function geocodeAddress(address) {
 }
 
 async function reverseGeocode(lat, lng) {
-  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`;
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=ru`;
   const res = await fetch(url, { headers: NOMINATIM_HEADERS });
   if (!res.ok) return '';
   const data = await res.json();
