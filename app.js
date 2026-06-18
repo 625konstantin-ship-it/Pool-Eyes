@@ -74,7 +74,12 @@ let chemistryLog = [];
 let selectedProblems = {};
 let charts = { ph: null, chlorine: null, temp: null };
 let isUpdatingUI = false;
+let poolMap = null;
+let poolMarker = null;
+let lastMapPoolId = null;
 const memoryStorage = {};
+const DEFAULT_MAP_CENTER = [50.4501, 30.5234];
+const NOMINATIM_HEADERS = { 'Accept-Language': 'ru', 'User-Agent': 'PoolTracker/1.0 (local pool app)' };
 
 function storageGet(key) {
   try { return localStorage.getItem(key); }
@@ -107,10 +112,138 @@ function escapeHtml(text) {
     .replace(/"/g, '&quot;');
 }
 
+let useServerAuth = false;
+
+async function digestSHA256(text) {
+  if (window.crypto && window.crypto.subtle) {
+    try {
+      const data = new TextEncoder().encode(text);
+      const hash = await crypto.subtle.digest('SHA-256', data);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch { /* fallback below */ }
+  }
+  return sha256Fallback(text);
+}
+
+function sha256Fallback(text) {
+  const K = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+  ];
+  let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
+  let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+  const bytes = new TextEncoder().encode(text);
+  const bitLen = bytes.length * 8;
+  const withOne = bytes.length + 1;
+  const padLen = (withOne % 64 <= 56 ? 56 : 120) - (withOne % 64);
+  const total = withOne + padLen + 8;
+  const buf = new Uint8Array(total);
+  buf.set(bytes);
+  buf[bytes.length] = 0x80;
+  new DataView(buf.buffer).setUint32(total - 4, bitLen);
+  const w = new Uint32Array(64);
+  for (let i = 0; i < total; i += 64) {
+    for (let j = 0; j < 16; j++) {
+      w[j] = (buf[i + j * 4] << 24) | (buf[i + j * 4 + 1] << 16) | (buf[i + j * 4 + 2] << 8) | buf[i + j * 4 + 3];
+    }
+    for (let j = 16; j < 64; j++) {
+      const s0 = ((w[j - 15] >>> 7) | (w[j - 15] << 25)) ^ ((w[j - 15] >>> 18) | (w[j - 15] << 14)) ^ (w[j - 15] >>> 3);
+      const s1 = ((w[j - 2] >>> 17) | (w[j - 2] << 15)) ^ ((w[j - 2] >>> 19) | (w[j - 2] << 13)) ^ (w[j - 2] >>> 10);
+      w[j] = (w[j - 16] + s0 + w[j - 7] + s1) | 0;
+    }
+    let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, hh = h7;
+    for (let j = 0; j < 64; j++) {
+      const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+      const ch = (e & f) ^ (~e & g);
+      const t1 = (hh + S1 + ch + K[j] + w[j]) | 0;
+      const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+      const maj = (a & b) ^ (a & c) ^ (b & c);
+      const t2 = (S0 + maj) | 0;
+      hh = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+    }
+    h0 = (h0 + a) | 0; h1 = (h1 + b) | 0; h2 = (h2 + c) | 0; h3 = (h3 + d) | 0;
+    h4 = (h4 + e) | 0; h5 = (h5 + f) | 0; h6 = (h6 + g) | 0; h7 = (h7 + hh) | 0;
+  }
+  return [h0, h1, h2, h3, h4, h5, h6, h7].map(v => (v >>> 0).toString(16).padStart(8, '0')).join('');
+}
+
 async function hashPassword(password, salt) {
-  const data = new TextEncoder().encode(salt + password);
-  const hash = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return digestSHA256((salt || '') + password);
+}
+
+function findUserByLogin(login) {
+  const normalized = normalizeLogin(login);
+  const users = getUsers();
+  return users.find(u => u.login === normalized)
+    || users.find(u => u.displayLogin && normalizeLogin(u.displayLogin) === normalized)
+    || null;
+}
+
+async function verifyPassword(password, user) {
+  if (!user || !user.passwordHash) return false;
+  const salt = user.salt || '';
+  const primary = await hashPassword(password, salt);
+  if (primary === user.passwordHash) return true;
+  if (salt) {
+    const legacy = await hashPassword(password, '');
+    if (legacy === user.passwordHash) return true;
+  }
+  return false;
+}
+
+async function apiPost(path, body) {
+  try {
+    const res = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    let data = {};
+    try { data = await res.json(); } catch { /* ignore */ }
+    return { ok: res.ok, status: res.status, data };
+  } catch {
+    return { ok: false, status: 0, data: { error: 'Нет связи с сервером. Запустите запуск.command.' } };
+  }
+}
+
+async function checkServerAuth() {
+  try {
+    const res = await fetch('/api/health', { cache: 'no-store' });
+    useServerAuth = res.ok;
+  } catch {
+    useServerAuth = false;
+  }
+  return useServerAuth;
+}
+
+async function migrateLocalUsersToServer() {
+  const localUsers = getUsers();
+  if (!localUsers.length) return;
+  try {
+    await apiPost('/api/migrate-local', { users: localUsers });
+  } catch { /* ignore */ }
+}
+
+function showProtocolWarning() {
+  const el = document.getElementById('authProtocolWarn');
+  if (!el) return;
+  if (location.protocol === 'file:') {
+    el.textContent = 'Сайт открыт как файл — вход может не работать. Запустите запуск.command и откройте http://localhost:8080';
+    el.className = 'message warn';
+    el.hidden = false;
+  } else if (!useServerAuth) {
+    el.textContent = 'Сервер не запущен — сброс пароля покажет код на экране. Для письма на email запустите запуск.command.';
+    el.className = 'message warn';
+    el.hidden = false;
+  } else {
+    el.hidden = true;
+  }
 }
 
 function getUsers() {
@@ -134,8 +267,13 @@ function getSession() {
   }
 }
 
-function setSession(userId, login) {
-  storageSet(STORAGE_KEYS.session, JSON.stringify({ userId, login }));
+function setSession(user) {
+  storageSet(STORAGE_KEYS.session, JSON.stringify({
+    userId: user.id,
+    login: user.login,
+    displayLogin: user.displayLogin || user.login,
+    email: user.email || ''
+  }));
 }
 
 function clearSession() {
@@ -146,19 +284,37 @@ function normalizeLogin(login) {
   return login.trim().toLowerCase();
 }
 
-async function registerUser(login, password) {
+async function registerUser(login, password, email) {
   const normalized = normalizeLogin(login);
   if (normalized.length < 3) return { ok: false, error: 'Логин — минимум 3 символа.' };
   if (password.length < 4) return { ok: false, error: 'Пароль — минимум 4 символа.' };
+  if (!email || !email.includes('@')) return { ok: false, error: 'Укажите корректный email.' };
+
+  if (useServerAuth) {
+    const { ok, data } = await apiPost('/api/register', {
+      login: login.trim(),
+      password,
+      email: email.trim().toLowerCase()
+    });
+    if (!ok) return { ok: false, error: data.error || 'Ошибка регистрации.' };
+    return { ok: true, user: data.user };
+  }
 
   const users = getUsers();
-  if (users.some(u => u.login === normalized)) {
+  if (findUserByLogin(normalized)) {
     return { ok: false, error: 'Такой логин уже занят.' };
   }
 
   const salt = generateId();
   const passwordHash = await hashPassword(password, salt);
-  const user = { id: generateId(), login: normalized, displayLogin: login.trim(), salt, passwordHash };
+  const user = {
+    id: generateId(),
+    login: normalized,
+    displayLogin: login.trim(),
+    email: email.trim().toLowerCase(),
+    salt,
+    passwordHash
+  };
   users.push(user);
   saveUsers(users);
 
@@ -168,16 +324,147 @@ async function registerUser(login, password) {
 }
 
 async function loginUser(login, password) {
-  const normalized = normalizeLogin(login);
-  const user = getUsers().find(u => u.login === normalized);
-  if (!user) return { ok: false, error: 'Неверный логин или пароль.' };
-
-  const hash = await hashPassword(password, user.salt);
-  if (hash !== user.passwordHash) {
-    return { ok: false, error: 'Неверный логин или пароль.' };
+  if (useServerAuth) {
+    const { ok, data } = await apiPost('/api/login', { login, password });
+    if (ok) return { ok: true, user: data.user };
   }
 
-  return { ok: true, user };
+  const user = findUserByLogin(login);
+  if (!user) return { ok: false, error: 'Неверный логин или пароль.' };
+
+  const valid = await verifyPassword(password, user);
+  if (!valid) return { ok: false, error: 'Неверный логин или пароль.' };
+
+  if (useServerAuth) {
+    await apiPost('/api/migrate-local', { users: [user] });
+  }
+
+  return { ok: true, user: {
+    id: user.id,
+    login: user.login,
+    displayLogin: user.displayLogin || user.login,
+    email: user.email || ''
+  }};
+}
+
+async function requestPasswordReset(login, email) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const trimmedLogin = login.trim();
+
+  if (useServerAuth) {
+    const { ok, data } = await apiPost('/api/forgot-password', {
+      login: trimmedLogin,
+      email: normalizedEmail
+    });
+    if (ok && data.devCode) return { ok: true, ...data };
+    if (ok) return { ok: true, ...data };
+  }
+
+  const user = findUserByLogin(trimmedLogin);
+  if (!user) {
+    return { ok: false, error: 'Пользователь с таким логином не найден на этом компьютере.' };
+  }
+  if (!user.email) {
+    return {
+      ok: false,
+      error: 'Email не указан. Войдите в аккаунт → кнопка «Email» → сохраните почту, затем повторите сброс.'
+    };
+  }
+  if (user.email.toLowerCase() !== normalizedEmail) {
+    return { ok: false, error: 'Email не совпадает. Проверьте написание или обновите email в настройках аккаунта.' };
+  }
+
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  storageSet(`poolApp_reset_${normalizeLogin(trimmedLogin)}`, JSON.stringify({
+    code,
+    expires: Date.now() + 15 * 60 * 1000
+  }));
+
+  return {
+    ok: true,
+    devMode: true,
+    devCode: code,
+    message: 'Код показан ниже. Для отправки на email настройте data/smtp.json и запустите запуск.command.'
+  };
+}
+
+async function resetPassword(login, code, newPassword) {
+  const trimmedLogin = login.trim();
+  const resetKey = `poolApp_reset_${normalizeLogin(trimmedLogin)}`;
+
+  if (useServerAuth) {
+    const { ok, data } = await apiPost('/api/reset-password', {
+      login: trimmedLogin,
+      code: code.trim(),
+      newPassword
+    });
+    if (ok) {
+      storageRemove(resetKey);
+      return { ok: true, message: data.message };
+    }
+  }
+
+  const user = findUserByLogin(trimmedLogin);
+  if (!user) {
+    return { ok: false, error: 'Пользователь не найден.' };
+  }
+
+  let token;
+  try { token = JSON.parse(storageGet(resetKey)); } catch { token = null; }
+  if (!token || token.code !== code.trim() || token.expires < Date.now()) {
+    return { ok: false, error: 'Неверный или просроченный код (действует 15 минут).' };
+  }
+
+  user.salt = generateId();
+  user.passwordHash = await hashPassword(newPassword, user.salt);
+  const users = getUsers();
+  const idx = users.findIndex(u => u.id === user.id);
+  if (idx >= 0) {
+    users[idx] = user;
+    saveUsers(users);
+  }
+  storageRemove(resetKey);
+
+  if (useServerAuth) {
+    await apiPost('/api/migrate-local', { users: [user] });
+  }
+
+  return { ok: true, message: 'Пароль изменён. Теперь можно войти.' };
+}
+
+async function saveAccountEmail(email) {
+  if (!currentUser) return { ok: false, error: 'Не выполнен вход.' };
+  const normalized = email.trim().toLowerCase();
+  if (!normalized.includes('@') || normalized.length < 5) {
+    return { ok: false, error: 'Укажите корректный email.' };
+  }
+
+  if (useServerAuth) {
+    const { ok, data } = await apiPost('/api/update-email', {
+      userId: currentUser.id,
+      login: currentUser.login,
+      email: normalized
+    });
+    if (!ok) return { ok: false, error: data.error || 'Не удалось сохранить на сервере.' };
+  }
+
+  const users = getUsers();
+  const user = users.find(u => u.id === currentUser.id) || findUserByLogin(currentUser.login);
+  if (user) {
+    user.email = normalized;
+    const idx = users.findIndex(u => u.id === user.id);
+    if (idx >= 0) {
+      users[idx] = user;
+      saveUsers(users);
+    }
+  }
+
+  currentUser.email = normalized;
+  setSession(currentUser);
+  document.getElementById('currentUserLabel').textContent =
+    (currentUser.displayLogin || currentUser.login) + ` · ${normalized}`;
+
+  return { ok: true, message: 'Email сохранён.' };
 }
 
 function migrateLegacyToUser(userId) {
@@ -243,6 +530,19 @@ function saveChemistry() {
   saveUserData();
 }
 
+function normalizeLocation(loc) {
+  if (!loc || typeof loc !== 'object') {
+    return { address: '', lat: null, lng: null };
+  }
+  const lat = loc.lat != null ? Number(loc.lat) : null;
+  const lng = loc.lng != null ? Number(loc.lng) : null;
+  return {
+    address: String(loc.address || ''),
+    lat: Number.isFinite(lat) ? lat : null,
+    lng: Number.isFinite(lng) ? lng : null
+  };
+}
+
 function normalizeStoredData() {
   poolList = poolList
     .filter(p => p && p.id && p.name)
@@ -250,7 +550,8 @@ function normalizeStoredData() {
       id: String(p.id),
       name: String(p.name),
       volume: Number(p.volume) || 25000,
-      treatmentType: p.treatmentType === 'peroxide' ? 'peroxide' : 'chlorine'
+      treatmentType: p.treatmentType === 'peroxide' ? 'peroxide' : 'chlorine',
+      location: normalizeLocation(p.location)
     }));
 
   measurements = measurements
@@ -279,7 +580,13 @@ function normalizeStoredData() {
 
 function ensureDefaultPool() {
   if (poolList.length === 0) {
-    const pool = { id: generateId(), name: 'Мой бассейн', volume: 25000, treatmentType: 'chlorine' };
+    const pool = {
+      id: generateId(),
+      name: 'Мой бассейн',
+      volume: 25000,
+      treatmentType: 'chlorine',
+      location: { address: '', lat: null, lng: null }
+    };
     poolList.push(pool);
     activePoolId = pool.id;
     savePools();
@@ -290,6 +597,32 @@ function ensureDefaultPool() {
   }
 }
 
+function openAccountModal() {
+  document.getElementById('accountEmail').value = currentUser?.email || '';
+  document.getElementById('accountEmailError').hidden = true;
+  document.getElementById('accountEmailSuccess').hidden = true;
+  document.getElementById('accountModal').classList.remove('hidden');
+}
+
+function closeAccountModal() {
+  document.getElementById('accountModal').classList.add('hidden');
+}
+
+async function handleSaveAccountEmail() {
+  const email = document.getElementById('accountEmail').value;
+  document.getElementById('accountEmailError').hidden = true;
+  document.getElementById('accountEmailSuccess').hidden = true;
+
+  const result = await saveAccountEmail(email);
+  if (!result.ok) {
+    document.getElementById('accountEmailError').textContent = result.error;
+    document.getElementById('accountEmailError').hidden = false;
+    return;
+  }
+  document.getElementById('accountEmailSuccess').textContent = result.message;
+  document.getElementById('accountEmailSuccess').hidden = false;
+}
+
 function showAuthScreen() {
   document.getElementById('authScreen').classList.remove('hidden');
   document.getElementById('appScreen').classList.add('hidden');
@@ -298,7 +631,9 @@ function showAuthScreen() {
 function showAppScreen() {
   document.getElementById('authScreen').classList.add('hidden');
   document.getElementById('appScreen').classList.remove('hidden');
-  document.getElementById('currentUserLabel').textContent = currentUser.displayLogin || currentUser.login;
+  const label = currentUser.displayLogin || currentUser.login;
+  const email = currentUser.email ? ` · ${currentUser.email}` : '';
+  document.getElementById('currentUserLabel').textContent = label + email;
 }
 
 function switchAuthTab(tab) {
@@ -307,8 +642,27 @@ function switchAuthTab(tab) {
   });
   document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
   document.getElementById('registerForm').classList.toggle('hidden', tab !== 'register');
-  document.getElementById('loginError').hidden = true;
-  document.getElementById('registerError').hidden = true;
+  document.getElementById('forgotForm').classList.toggle('hidden', tab !== 'forgot');
+  document.getElementById('resetForm').classList.toggle('hidden', tab !== 'reset');
+  ['loginError', 'registerError', 'forgotError', 'forgotSuccess', 'forgotDevCode', 'resetError', 'resetSuccess'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.hidden = true;
+  });
+}
+
+function hideAuthMessages(ids) {
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.hidden = true;
+  });
+}
+
+function showAuthMessage(id, text, type = 'error') {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.className = `message ${type}`;
+  el.hidden = false;
 }
 
 async function handleLogin(e) {
@@ -325,33 +679,85 @@ async function handleLogin(e) {
   }
 
   currentUser = result.user;
-  setSession(currentUser.id, currentUser.displayLogin || currentUser.login);
+  setSession(currentUser);
   startApp();
 }
 
 async function handleRegister(e) {
   e.preventDefault();
   const login = document.getElementById('registerUsername').value;
+  const email = document.getElementById('registerEmail').value;
   const password = document.getElementById('registerPassword').value;
   const confirm = document.getElementById('registerPasswordConfirm').value;
-  const errorEl = document.getElementById('registerError');
+
+  hideAuthMessages(['registerError']);
 
   if (password !== confirm) {
-    errorEl.textContent = 'Пароли не совпадают.';
-    errorEl.hidden = false;
+    showAuthMessage('registerError', 'Пароли не совпадают.');
     return;
   }
 
-  const result = await registerUser(login, password);
+  const result = await registerUser(login, password, email);
   if (!result.ok) {
-    errorEl.textContent = result.error;
-    errorEl.hidden = false;
+    showAuthMessage('registerError', result.error);
     return;
   }
 
   currentUser = result.user;
-  setSession(currentUser.id, currentUser.displayLogin || currentUser.login);
+  setSession(currentUser);
   startApp();
+}
+
+async function handleForgot(e) {
+  e.preventDefault();
+  hideAuthMessages(['forgotError', 'forgotSuccess', 'forgotDevCode']);
+
+  const login = document.getElementById('forgotLogin').value;
+  const email = document.getElementById('forgotEmail').value;
+
+  const result = await requestPasswordReset(login, email);
+  if (!result.ok) {
+    showAuthMessage('forgotError', result.error);
+    return;
+  }
+
+  showAuthMessage('forgotSuccess', result.message, 'success');
+  document.getElementById('resetLogin').value = login.trim();
+
+  if (result.devCode) {
+    showAuthMessage('forgotDevCode', `Код для теста (почта не настроена): ${result.devCode}`, 'info');
+  }
+
+  switchAuthTab('reset');
+  document.getElementById('resetForm').classList.remove('hidden');
+  document.querySelectorAll('.auth-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === 'reset');
+  });
+}
+
+async function handleReset(e) {
+  e.preventDefault();
+  hideAuthMessages(['resetError', 'resetSuccess']);
+
+  const login = document.getElementById('resetLogin').value;
+  const code = document.getElementById('resetCode').value;
+  const password = document.getElementById('resetPassword').value;
+  const confirm = document.getElementById('resetPasswordConfirm').value;
+
+  if (password !== confirm) {
+    showAuthMessage('resetError', 'Пароли не совпадают.');
+    return;
+  }
+
+  const result = await resetPassword(login, code, password);
+  if (!result.ok) {
+    showAuthMessage('resetError', result.error);
+    return;
+  }
+
+  showAuthMessage('resetSuccess', result.message || 'Пароль изменён!', 'success');
+  document.getElementById('loginUsername').value = login.trim();
+  setTimeout(() => switchAuthTab('login'), 1500);
 }
 
 function handleLogout() {
@@ -365,6 +771,7 @@ function handleLogout() {
   selectedProblems = {};
   clearSession();
   destroyCharts();
+  destroyPoolMap();
   showAuthScreen();
   document.getElementById('loginForm').reset();
   document.getElementById('registerForm').reset();
@@ -439,6 +846,170 @@ function showMessage(el, text, type = 'success') {
   el.className = `message ${type}`;
   el.hidden = false;
   setTimeout(() => { el.hidden = true; }, 3500);
+}
+
+function formatPoolMeta(pool, poolMeas, poolChem, treatmentType) {
+  const parts = [
+    `Объём: ${formatVolume(pool.volume)}`,
+    TREATMENT_LABELS[treatmentType],
+    `Измерений: ${poolMeas.length}`,
+    `Записей химии: ${poolChem.length}`
+  ];
+  if (pool.location && pool.location.address) {
+    parts.push(`📍 ${pool.location.address}`);
+  }
+  return parts.join(' · ');
+}
+
+function updateLocationStatus(text) {
+  const el = document.getElementById('locationStatus');
+  if (el) el.textContent = text;
+}
+
+function destroyPoolMap() {
+  if (poolMap) {
+    poolMap.remove();
+    poolMap = null;
+    poolMarker = null;
+  }
+  lastMapPoolId = null;
+}
+
+function updateRouteLinks(lat, lng) {
+  const routeActions = document.getElementById('routeActions');
+  if (!routeActions) return;
+
+  if (lat == null || lng == null) {
+    routeActions.classList.add('hidden');
+    return;
+  }
+
+  routeActions.classList.remove('hidden');
+  document.getElementById('routeGoogle').href =
+    `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+}
+
+function setMapMarker(lat, lng, pan = true) {
+  if (!poolMap || typeof L === 'undefined') return;
+
+  if (poolMarker) {
+    poolMarker.setLatLng([lat, lng]);
+  } else {
+    poolMarker = L.marker([lat, lng], { draggable: true }).addTo(poolMap);
+    poolMarker.on('dragend', () => {
+      const pos = poolMarker.getLatLng();
+      updateLocationStatus(`Метка: ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)} — нажмите «Сохранить локацию»`);
+      updateRouteLinks(pos.lat, pos.lng);
+    });
+  }
+
+  if (pan) {
+    poolMap.setView([lat, lng], Math.max(poolMap.getZoom(), 14));
+  }
+  updateRouteLinks(lat, lng);
+  updateLocationStatus(`Метка: ${lat.toFixed(5)}, ${lng.toFixed(5)} — нажмите «Сохранить локацию»`);
+}
+
+function getMarkerCoords() {
+  if (!poolMarker) return null;
+  const pos = poolMarker.getLatLng();
+  return { lat: pos.lat, lng: pos.lng };
+}
+
+function initPoolMap(pool) {
+  destroyPoolMap();
+  if (typeof L === 'undefined') {
+    updateLocationStatus('Карта не загрузилась. Проверьте интернет.');
+    return;
+  }
+
+  const loc = pool.location || normalizeLocation(null);
+  const hasCoords = loc.lat != null && loc.lng != null;
+  const center = hasCoords ? [loc.lat, loc.lng] : DEFAULT_MAP_CENTER;
+  const zoom = hasCoords ? 15 : 10;
+
+  poolMap = L.map('poolMap', { scrollWheelZoom: true }).setView(center, zoom);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(poolMap);
+
+  if (hasCoords) {
+    setMapMarker(loc.lat, loc.lng, false);
+    updateLocationStatus(loc.address || `Сохранено: ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`);
+  } else {
+    updateLocationStatus('Кликните на карту, чтобы поставить метку, или найдите адрес.');
+    updateRouteLinks(null, null);
+  }
+
+  poolMap.on('click', e => {
+    setMapMarker(e.latlng.lat, e.latlng.lng);
+  });
+
+  setTimeout(() => {
+    if (poolMap) poolMap.invalidateSize();
+  }, 150);
+}
+
+function renderLocationUI(pool) {
+  const addressInput = document.getElementById('poolAddress');
+  const poolChanged = lastMapPoolId !== pool.id;
+
+  if (addressInput && poolChanged) {
+    addressInput.value = pool.location?.address || '';
+  }
+
+  if (poolChanged) {
+    lastMapPoolId = pool.id;
+    initPoolMap(pool);
+  }
+}
+
+async function geocodeAddress(address) {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
+  const res = await fetch(url, { headers: NOMINATIM_HEADERS });
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (!data.length) return null;
+  return {
+    lat: parseFloat(data[0].lat),
+    lng: parseFloat(data[0].lon),
+    address: data[0].display_name
+  };
+}
+
+async function reverseGeocode(lat, lng) {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`;
+  const res = await fetch(url, { headers: NOMINATIM_HEADERS });
+  if (!res.ok) return '';
+  const data = await res.json();
+  return data.display_name || '';
+}
+
+function savePoolLocation() {
+  const pool = getActivePool();
+  if (!pool) return false;
+
+  const coords = getMarkerCoords();
+  if (!coords) {
+    alert('Сначала укажите точку на карте или найдите адрес.');
+    return false;
+  }
+
+  pool.location = {
+    address: document.getElementById('poolAddress').value.trim(),
+    lat: coords.lat,
+    lng: coords.lng
+  };
+  savePools();
+  updateLocationStatus(pool.location.address || `Сохранено: ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`);
+  document.getElementById('activePoolMeta').textContent = formatPoolMeta(
+    pool,
+    getPoolMeasurements(pool.id),
+    getPoolChemistry(pool.id),
+    getPoolTreatment(pool)
+  );
+  return true;
 }
 
 function getParamStatus(value, norm) {
@@ -668,6 +1239,7 @@ function renderPoolContent() {
   if (!pool) {
     content.classList.add('hidden');
     noHint.classList.remove('hidden');
+    destroyPoolMap();
     return;
   }
 
@@ -680,11 +1252,12 @@ function renderPoolContent() {
 
   document.getElementById('activePoolName').textContent = pool.name;
   document.getElementById('activePoolMeta').textContent =
-    `Объём: ${formatVolume(pool.volume)} · ${TREATMENT_LABELS[treatmentType]} · Измерений: ${poolMeas.length} · Записей химии: ${poolChem.length}`;
+    formatPoolMeta(pool, poolMeas, poolChem, treatmentType);
 
   syncVolumeSelect(pool.volume);
   syncTreatmentSelect(treatmentType);
   syncMeasurementLabels(treatmentType);
+  renderLocationUI(pool);
   renderProblemsGrid();
   renderProblemRecommendations(selectedProblems[pool.id] || []);
   renderChemistryHistory(poolChem);
@@ -823,7 +1396,15 @@ function initAuthListeners() {
   });
   document.getElementById('loginForm').addEventListener('submit', handleLogin);
   document.getElementById('registerForm').addEventListener('submit', handleRegister);
+  document.getElementById('forgotForm').addEventListener('submit', handleForgot);
+  document.getElementById('resetForm').addEventListener('submit', handleReset);
+  document.getElementById('gotoForgotBtn').addEventListener('click', () => switchAuthTab('forgot'));
   document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+  document.getElementById('accountBtn').addEventListener('click', openAccountModal);
+  document.getElementById('saveAccountEmailBtn').addEventListener('click', handleSaveAccountEmail);
+  document.querySelectorAll('[data-close-account]').forEach(el => {
+    el.addEventListener('click', closeAccountModal);
+  });
 }
 
 function initEventListeners() {
@@ -882,7 +1463,8 @@ function initEventListeners() {
       id: generateId(),
       name,
       volume,
-      treatmentType: document.getElementById('newPoolTreatment').value === 'peroxide' ? 'peroxide' : 'chlorine'
+      treatmentType: document.getElementById('newPoolTreatment').value === 'peroxide' ? 'peroxide' : 'chlorine',
+      location: { address: '', lat: null, lng: null }
     };
     poolList.push(pool);
     savePools();
@@ -1027,15 +1609,87 @@ function initEventListeners() {
     renderPoolContent();
     showMessage(document.getElementById('selectorMessage'), 'История очищена.');
   });
+
+  document.getElementById('geocodeBtn').addEventListener('click', async () => {
+    const address = document.getElementById('poolAddress').value.trim();
+    if (!address) {
+      alert('Введите адрес для поиска.');
+      return;
+    }
+
+    updateLocationStatus('Ищем адрес...');
+    try {
+      const result = await geocodeAddress(address);
+      if (!result) {
+        updateLocationStatus('Адрес не найден. Попробуйте другую формулировку.');
+        return;
+      }
+      document.getElementById('poolAddress').value = result.address;
+      setMapMarker(result.lat, result.lng);
+    } catch {
+      updateLocationStatus('Ошибка поиска. Проверьте интернет.');
+    }
+  });
+
+  document.getElementById('gpsBtn').addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      alert('Геолокация не поддерживается в этом браузере.');
+      return;
+    }
+
+    updateLocationStatus('Определяем местоположение...');
+    navigator.geolocation.getCurrentPosition(
+      async pos => {
+        const { latitude, longitude } = pos.coords;
+        setMapMarker(latitude, longitude);
+        try {
+          const address = await reverseGeocode(latitude, longitude);
+          if (address) {
+            document.getElementById('poolAddress').value = address;
+            updateLocationStatus(`Найдено: ${address}`);
+          }
+        } catch {
+          /* coords already set on map */
+        }
+      },
+      () => {
+        updateLocationStatus('Не удалось определить GPS. Разрешите доступ к геолокации.');
+        alert('Разрешите доступ к местоположению в настройках браузера.');
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  });
+
+  document.getElementById('saveLocationBtn').addEventListener('click', () => {
+    if (savePoolLocation()) {
+      showMessage(document.getElementById('selectorMessage'), 'Локация бассейна сохранена!');
+    }
+  });
 }
 
-function init() {
+async function init() {
   initAuthListeners();
   initEventListeners();
 
+  await checkServerAuth();
+  if (useServerAuth) {
+    await migrateLocalUsersToServer();
+  }
+  showProtocolWarning();
+
   const session = getSession();
   if (session && session.userId) {
-    const user = getUsers().find(u => u.id === session.userId);
+    if (useServerAuth) {
+      currentUser = {
+        id: session.userId,
+        login: session.login,
+        displayLogin: session.displayLogin || session.login,
+        email: session.email || ''
+      };
+      startApp();
+      return;
+    }
+    const user = getUsers().find(u => u.id === session.userId) || findUserByLogin(session.login || '');
     if (user) {
       currentUser = user;
       startApp();

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Учёт параметров бассейна</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 </head>
 <body>
   <div id="authScreen" class="auth-screen">
@@ -15,7 +16,10 @@
       <div class="auth-tabs">
         <button type="button" class="auth-tab active" data-tab="login">Вход</button>
         <button type="button" class="auth-tab" data-tab="register">Регистрация</button>
+        <button type="button" class="auth-tab" data-tab="forgot">Сброс пароля</button>
       </div>
+
+      <p id="authProtocolWarn" class="message warn hidden"></p>
 
       <form id="loginForm" class="auth-form">
         <div class="field">
@@ -28,12 +32,17 @@
         </div>
         <p id="loginError" class="message error" hidden></p>
         <button type="submit" class="btn btn-primary btn-full">Войти</button>
+        <p class="auth-link"><button type="button" id="gotoForgotBtn" class="link-btn">Забыли пароль?</button></p>
       </form>
 
       <form id="registerForm" class="auth-form hidden">
         <div class="field">
           <label for="registerUsername">Логин</label>
           <input type="text" id="registerUsername" autocomplete="username" placeholder="Придумайте логин" required minlength="3" maxlength="30">
+        </div>
+        <div class="field">
+          <label for="registerEmail">Email</label>
+          <input type="email" id="registerEmail" autocomplete="email" placeholder="email@example.com" required maxlength="80">
         </div>
         <div class="field">
           <label for="registerPassword">Пароль</label>
@@ -47,7 +56,46 @@
         <button type="submit" class="btn btn-primary btn-full">Зарегистрироваться</button>
       </form>
 
-      <p class="auth-note">Данные хранятся на этом компьютере в браузере. Каждый пользователь видит только свои бассейны.</p>
+      <form id="forgotForm" class="auth-form hidden">
+        <p class="hint">Введите логин и email. Если почта не настроена — код появится на экране.</p>
+        <div class="field">
+          <label for="forgotLogin">Логин</label>
+          <input type="text" id="forgotLogin" autocomplete="username" placeholder="Ваш логин" required minlength="3" maxlength="30">
+        </div>
+        <div class="field">
+          <label for="forgotEmail">Email</label>
+          <input type="email" id="forgotEmail" autocomplete="email" placeholder="email@example.com" required maxlength="80">
+        </div>
+        <p id="forgotError" class="message error" hidden></p>
+        <p id="forgotSuccess" class="message success" hidden></p>
+        <p id="forgotDevCode" class="message info hidden"></p>
+        <button type="submit" class="btn btn-primary btn-full">Отправить код</button>
+      </form>
+
+      <form id="resetForm" class="auth-form hidden">
+        <p class="hint">Введите код из письма и новый пароль.</p>
+        <div class="field">
+          <label for="resetLogin">Логин</label>
+          <input type="text" id="resetLogin" autocomplete="username" required minlength="3" maxlength="30">
+        </div>
+        <div class="field">
+          <label for="resetCode">Код из письма</label>
+          <input type="text" id="resetCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="123456" required>
+        </div>
+        <div class="field">
+          <label for="resetPassword">Новый пароль</label>
+          <input type="password" id="resetPassword" autocomplete="new-password" required minlength="4">
+        </div>
+        <div class="field">
+          <label for="resetPasswordConfirm">Повторите пароль</label>
+          <input type="password" id="resetPasswordConfirm" autocomplete="new-password" required minlength="4">
+        </div>
+        <p id="resetError" class="message error" hidden></p>
+        <p id="resetSuccess" class="message success" hidden></p>
+        <button type="submit" class="btn btn-primary btn-full">Сменить пароль</button>
+      </form>
+
+      <p class="auth-note">Запускайте сайт через <strong>запуск.command</strong> → http://localhost:8080 — так вход и почта работают стабильно.</p>
     </div>
   </div>
 
@@ -60,6 +108,7 @@
         </div>
         <div class="user-bar">
           <span id="currentUserLabel" class="user-label"></span>
+          <button type="button" id="accountBtn" class="btn btn-secondary btn-small">Email</button>
           <button type="button" id="logoutBtn" class="btn btn-secondary btn-small">Выйти</button>
         </div>
       </div>
@@ -101,6 +150,26 @@
               <option value="peroxide">На перекиси</option>
             </select>
           </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Локация бассейна</h2>
+        <p class="hint">Введите адрес, нажмите на карту или используйте GPS — затем сохраните. Можно построить маршрут до бассейна.</p>
+        <div class="field">
+          <label for="poolAddress">Адрес</label>
+          <input type="text" id="poolAddress" maxlength="200" placeholder="Город, улица, дом">
+        </div>
+        <div class="location-actions">
+          <button type="button" id="geocodeBtn" class="btn btn-secondary">Найти по адресу</button>
+          <button type="button" id="gpsBtn" class="btn btn-secondary">Моё местоположение</button>
+          <button type="button" id="saveLocationBtn" class="btn btn-primary">Сохранить локацию</button>
+        </div>
+        <div id="poolMap" class="pool-map"></div>
+        <p id="locationStatus" class="location-status hint">Кликните на карту, чтобы поставить метку.</p>
+        <div id="routeActions" class="route-actions hidden">
+          <span class="route-label">Маршрут до бассейна:</span>
+          <a id="routeGoogle" class="btn btn-secondary btn-small" target="_blank" rel="noopener noreferrer">Google Maps — маршрут</a>
         </div>
       </section>
 
@@ -245,6 +314,25 @@
     <p id="noPoolHint" class="no-pool hidden">Выберите бассейн из списка или добавьте новый.</p>
   </div>
 
+  <div id="accountModal" class="modal hidden" role="dialog" aria-labelledby="accountModalTitle" aria-modal="true">
+    <div class="modal-backdrop" data-close-account></div>
+    <div class="modal-content">
+      <button type="button" class="modal-close" data-close-account aria-label="Закрыть">&times;</button>
+      <h2 id="accountModalTitle">Email для сброса пароля</h2>
+      <p class="hint">Укажите email — он нужен для восстановления пароля. Письмо придёт только если настроен data/smtp.json.</p>
+      <div class="field">
+        <label for="accountEmail">Email</label>
+        <input type="email" id="accountEmail" placeholder="email@example.com" maxlength="80">
+      </div>
+      <p id="accountEmailError" class="message error" hidden></p>
+      <p id="accountEmailSuccess" class="message success" hidden></p>
+      <div class="modal-actions">
+        <button type="button" id="saveAccountEmailBtn" class="btn btn-primary">Сохранить</button>
+        <button type="button" class="btn btn-secondary" data-close-account>Закрыть</button>
+      </div>
+    </div>
+  </div>
+
   <div id="addPoolModal" class="modal hidden" role="dialog" aria-labelledby="modalTitle" aria-modal="true">
     <div class="modal-backdrop" data-close-modal></div>
     <div class="modal-content">
@@ -285,6 +373,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -192,6 +192,43 @@ td.comment-cell {
   color: #4a6a7a;
 }
 
+.pool-map {
+  height: 280px;
+  border-radius: 10px;
+  border: 2px solid #d8eaf4;
+  margin: 14px 0 10px;
+  z-index: 1;
+}
+
+.location-actions,
+.route-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.route-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0d4a6b;
+}
+
+.location-status {
+  margin-top: 8px;
+  min-height: 1.2em;
+}
+
+.route-actions {
+  margin-top: 12px;
+}
+
+.route-actions .btn {
+  text-decoration: none;
+  display: inline-block;
+}
+
 .btn {
   padding: 10px 18px;
   border: none;
@@ -254,6 +291,35 @@ td.comment-cell {
 .message.error {
   background: #fde8e8;
   color: #8b2020;
+}
+
+.message.warn {
+  background: #fff8e6;
+  color: #6b4f0a;
+}
+
+.message.info {
+  background: #e8f4fc;
+  color: #0d4a6b;
+}
+
+.auth-link {
+  text-align: center;
+  margin-top: 12px;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: #1a8fc7;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.link-btn:hover {
+  color: #1578ab;
 }
 
 .hidden {
