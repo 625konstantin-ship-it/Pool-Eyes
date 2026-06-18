@@ -1,0 +1,397 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: linear-gradient(160deg, #e0f4ff 0%, #b8e0f5 50%, #7ec8e3 100%);
+  min-height: 100vh;
+  color: #1a3a4a;
+  line-height: 1.5;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+header h1 {
+  font-size: 1.75rem;
+  color: #0d4a6b;
+}
+
+.subtitle {
+  color: #3d6b80;
+  margin-top: 6px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 16px rgba(13, 74, 107, 0.12);
+}
+
+.card h2 {
+  font-size: 1.15rem;
+  color: #0d4a6b;
+  margin-bottom: 14px;
+}
+
+.meta {
+  color: #5a7a8a;
+  font-size: 0.95rem;
+  margin-bottom: 14px;
+}
+
+.hint, .empty, .no-pool {
+  color: #6a8a9a;
+  font-size: 0.9rem;
+}
+
+.no-pool {
+  text-align: center;
+  padding: 40px 20px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+}
+
+.selector-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.selector-row select {
+  flex: 1;
+  min-width: 200px;
+}
+
+select, input[type="number"], input[type="text"] {
+  padding: 10px 12px;
+  border: 1px solid #b8d4e3;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: #f8fcff;
+}
+
+select:focus, input:focus {
+  outline: 2px solid #2a9fd6;
+  border-color: #2a9fd6;
+}
+
+.btn {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #1a8fc7;
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #1578ab;
+}
+
+.btn-secondary {
+  background: #e8f4fa;
+  color: #0d4a6b;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #d0e8f4;
+}
+
+.btn-danger {
+  background: #e05a5a;
+  color: #fff;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #c94a4a;
+}
+
+.btn-small {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.message {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.message.success {
+  background: #e6f7ed;
+  color: #1a6b3a;
+}
+
+.message.error {
+  background: #fde8e8;
+  color: #8b2020;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.volume-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.volume-row label {
+  font-weight: 600;
+}
+
+.custom-volume {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  background: #e8f4fc;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 2px solid #2a9fd6;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.field label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+}
+
+.field input {
+  width: 100%;
+}
+
+.problems-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.problem-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 2px solid #d8eaf4;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: #f8fcff;
+}
+
+.problem-item:hover {
+  border-color: #7ec8e3;
+  background: #eef8fc;
+}
+
+.problem-item.selected {
+  border-color: #1a8fc7;
+  background: #e0f4ff;
+}
+
+.problem-item input {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.problem-item .problem-label {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.problem-item .problem-desc {
+  font-size: 0.8rem;
+  color: #6a8a9a;
+  margin-top: 2px;
+}
+
+.recommendations {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rec-item {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border-left: 4px solid;
+  font-size: 0.92rem;
+}
+
+.rec-item.ok {
+  background: #e6f7ed;
+  border-color: #2db86a;
+  color: #1a5c32;
+}
+
+.rec-item.warn {
+  background: #fff8e6;
+  border-color: #e6b020;
+  color: #6b4f0a;
+}
+
+.rec-item.crit {
+  background: #fde8e8;
+  border-color: #e05a5a;
+  color: #7a2020;
+}
+
+.rec-item.info {
+  background: #e8f4fc;
+  border-color: #2a9fd6;
+  color: #0d4a6b;
+}
+
+.rec-item strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.charts {
+  display: grid;
+  gap: 20px;
+}
+
+.chart-wrap {
+  height: 220px;
+  position: relative;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.history-header h2 {
+  margin-bottom: 0;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th, td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #e0eef4;
+}
+
+th {
+  background: #f0f8fc;
+  color: #0d4a6b;
+  font-weight: 600;
+}
+
+.status-ok { color: #1a8f4a; font-weight: 600; }
+.status-warn { color: #b8860b; font-weight: 600; }
+.status-crit { color: #c94a4a; font-weight: 600; }
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(13, 40, 60, 0.5);
+}
+
+.modal-content {
+  position: relative;
+  background: #fff;
+  border-radius: 14px;
+  padding: 24px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #6a8a9a;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: #0d4a6b;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+@media (max-width: 600px) {
+  .selector-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .selector-row select,
+  .selector-row .btn {
+    width: 100%;
+  }
+}

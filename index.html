@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Учёт параметров бассейна</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Учёт параметров бассейна</h1>
+      <p class="subtitle">Контроль pH, хлора, температуры и состояния воды</p>
+    </header>
+
+    <section class="card pool-selector">
+      <h2>Выберите бассейн</h2>
+      <div class="selector-row">
+        <select id="poolSelect" aria-label="Сохранённые бассейны"></select>
+        <button type="button" id="addPoolBtn" class="btn btn-primary">+ Добавить бассейн</button>
+        <button type="button" id="deletePoolBtn" class="btn btn-danger" disabled>Удалить</button>
+      </div>
+      <p id="selectorMessage" class="message" hidden></p>
+    </section>
+
+    <div id="poolContent" class="hidden">
+      <section class="card pool-info">
+        <h2 id="activePoolName">—</h2>
+        <p id="activePoolMeta" class="meta"></p>
+        <div class="volume-row">
+          <label for="volumeSelect">Объём бассейна</label>
+          <select id="volumeSelect">
+            <option value="10000">10 000 л</option>
+            <option value="25000">25 000 л</option>
+            <option value="50000">50 000 л</option>
+            <option value="75000">75 000 л</option>
+            <option value="custom">Свой объём...</option>
+          </select>
+          <div id="customVolumeWrap" class="custom-volume hidden">
+            <input type="number" id="customVolume" min="1000" max="500000" step="100" placeholder="Литры">
+            <button type="button" id="saveVolumeBtn" class="btn btn-secondary">Сохранить объём</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Новое измерение</h2>
+        <form id="measurementForm">
+          <div class="form-grid">
+            <div class="field">
+              <label for="ph">pH</label>
+              <input type="number" id="ph" step="0.1" min="0" max="14" placeholder="7.4" required>
+            </div>
+            <div class="field">
+              <label for="chlorine">Свободный хлор (мг/л)</label>
+              <input type="number" id="chlorine" step="0.1" min="0" max="10" placeholder="1.5" required>
+            </div>
+            <div class="field">
+              <label for="temperature">Температура (°C)</label>
+              <input type="number" id="temperature" step="0.1" min="0" max="50" placeholder="26" required>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary">Сохранить измерение</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Проблемы с водой</h2>
+        <p class="hint">Отметьте, что вы наблюдаете в бассейне — появятся рекомендации по устранению.</p>
+        <div class="problems-grid" id="problemsGrid"></div>
+        <div id="problemRecommendations" class="recommendations"></div>
+      </section>
+
+      <section class="card">
+        <h2>Рекомендации по параметрам</h2>
+        <div id="paramRecommendations" class="recommendations"></div>
+      </section>
+
+      <section class="card">
+        <h2>Графики</h2>
+        <p class="hint">Добавьте несколько измерений, чтобы увидеть динамику.</p>
+        <div class="charts">
+          <div class="chart-wrap"><canvas id="phChart"></canvas></div>
+          <div class="chart-wrap"><canvas id="chlorineChart"></canvas></div>
+          <div class="chart-wrap"><canvas id="tempChart"></canvas></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="history-header">
+          <h2>История измерений</h2>
+          <button type="button" id="clearHistoryBtn" class="btn btn-danger btn-small">Очистить историю</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Дата</th>
+                <th>pH</th>
+                <th>Хлор</th>
+                <th>Темп.</th>
+                <th>Статус</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+        <p id="emptyHistory" class="empty">Пока нет измерений для этого бассейна.</p>
+      </section>
+    </div>
+
+    <p id="noPoolHint" class="no-pool">Выберите бассейн из списка или добавьте новый.</p>
+  </div>
+
+  <div id="addPoolModal" class="modal hidden" role="dialog" aria-labelledby="modalTitle" aria-modal="true">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-content">
+      <button type="button" class="modal-close" data-close-modal aria-label="Закрыть">&times;</button>
+      <h2 id="modalTitle">Новый бассейн</h2>
+      <form id="addPoolForm">
+        <div class="field">
+          <label for="newPoolName">Название</label>
+          <input type="text" id="newPoolName" placeholder="Например: Дача" required maxlength="50">
+        </div>
+        <div class="field">
+          <label for="newPoolVolume">Объём</label>
+          <select id="newPoolVolume">
+            <option value="10000">10 000 л</option>
+            <option value="25000">25 000 л</option>
+            <option value="50000">50 000 л</option>
+            <option value="75000">75 000 л</option>
+            <option value="custom">Свой объём...</option>
+          </select>
+        </div>
+        <div id="newCustomVolumeWrap" class="custom-volume hidden">
+          <input type="number" id="newCustomVolume" min="1000" max="500000" step="100" placeholder="Литры">
+        </div>
+        <p id="modalError" class="message error" hidden></p>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">Добавить</button>
+          <button type="button" class="btn btn-secondary" data-close-modal>Отмена</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
