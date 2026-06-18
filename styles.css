@@ -4,18 +4,27 @@
   padding: 0;
 }
 
+html {
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: linear-gradient(160deg, #e0f4ff 0%, #b8e0f5 50%, #7ec8e3 100%);
   min-height: 100vh;
   color: #1a3a4a;
   line-height: 1.5;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
 }
 
 .container {
   max-width: 900px;
+  width: 100%;
   margin: 0 auto;
-  padding: 24px 16px 48px;
+  padding: 24px max(16px, env(safe-area-inset-right)) 48px max(16px, env(safe-area-inset-left));
 }
 
 header {
@@ -39,6 +48,9 @@ header h1 {
   padding: 20px;
   margin-bottom: 20px;
   box-shadow: 0 4px 16px rgba(13, 74, 107, 0.12);
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .card h2 {
@@ -74,16 +86,19 @@ header h1 {
 
 .selector-row select {
   flex: 1;
-  min-width: 200px;
+  min-width: 0;
+  width: 100%;
 }
 
-select, input[type="number"], input[type="text"], input[type="password"], textarea {
+select, input[type="number"], input[type="text"], input[type="email"], input[type="password"], textarea {
   padding: 10px 12px;
   border: 1px solid #b8d4e3;
   border-radius: 8px;
   font-size: 1rem;
   background: #f8fcff;
   font-family: inherit;
+  max-width: 100%;
+  width: 100%;
 }
 
 textarea {
@@ -102,7 +117,8 @@ select:focus, input:focus, textarea:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px 16px;
+  padding: 24px max(16px, env(safe-area-inset-right)) 24px max(16px, env(safe-area-inset-left));
+  width: 100%;
 }
 
 .auth-card {
@@ -113,6 +129,7 @@ select:focus, input:focus, textarea:focus {
   max-width: 420px;
   box-shadow: 0 8px 32px rgba(13, 74, 107, 0.15);
   text-align: center;
+  margin: 0 auto;
 }
 
 .auth-card h1 {
@@ -170,6 +187,12 @@ select:focus, input:focus, textarea:focus {
   align-items: flex-start;
   gap: 16px;
   flex-wrap: wrap;
+  width: 100%;
+}
+
+.header-row > div:first-child {
+  flex: 1;
+  min-width: 0;
 }
 
 .user-bar {
@@ -177,12 +200,15 @@ select:focus, input:focus, textarea:focus {
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+  max-width: 100%;
 }
 
 .user-label {
   font-size: 0.9rem;
   color: #3d6b80;
   font-weight: 600;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 td.comment-cell {
@@ -196,11 +222,13 @@ td.comment-cell {
   height: 280px;
   min-height: 280px;
   width: 100%;
+  max-width: 100%;
   border-radius: 10px;
   border: 2px solid #d8eaf4;
   margin: 14px 0 10px;
   z-index: 1;
   background: #e8f4fc;
+  overflow: hidden;
 }
 
 .pool-map .leaflet-container {
@@ -247,6 +275,7 @@ td.comment-cell {
   cursor: pointer;
   font-weight: 600;
   transition: background 0.15s, opacity 0.15s;
+  max-width: 100%;
 }
 
 .btn:disabled {
@@ -366,9 +395,10 @@ td.comment-cell {
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
   gap: 14px;
   margin-bottom: 16px;
+  width: 100%;
 }
 
 .field label {
@@ -384,9 +414,10 @@ td.comment-cell {
 
 .problems-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
   gap: 10px;
   margin-bottom: 16px;
+  width: 100%;
 }
 
 .problem-item {
@@ -496,10 +527,14 @@ td.comment-cell {
 
 .table-wrap {
   overflow-x: auto;
+  width: 100%;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 table {
   width: 100%;
+  min-width: 480px;
   border-collapse: collapse;
   font-size: 0.9rem;
 }
@@ -569,6 +604,42 @@ th {
 }
 
 @media (max-width: 600px) {
+  .container {
+    padding: 16px max(12px, env(safe-area-inset-right)) 32px max(12px, env(safe-area-inset-left));
+  }
+
+  .card {
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  header h1 {
+    font-size: 1.35rem;
+  }
+
+  .header-row {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .user-bar {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .user-label {
+    font-size: 0.82rem;
+    text-align: center;
+    width: 100%;
+  }
+
   .selector-row {
     flex-direction: column;
     align-items: stretch;
@@ -577,5 +648,90 @@ th {
   .selector-row select,
   .selector-row .btn {
     width: 100%;
+  }
+
+  .volume-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .volume-row label,
+  .volume-row select {
+    width: 100%;
+  }
+
+  .custom-volume {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .custom-volume input,
+  .custom-volume .btn {
+    width: 100%;
+  }
+
+  .location-actions,
+  .route-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .location-actions .btn,
+  .route-actions .btn,
+  .route-actions a.btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .route-label {
+    text-align: center;
+    width: 100%;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .problems-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .history-header .btn {
+    width: 100%;
+  }
+
+  .auth-card {
+    padding: 24px 18px;
+  }
+
+  .auth-tab {
+    font-size: 0.8rem;
+    padding: 8px 6px;
+  }
+
+  .modal-content {
+    padding: 20px 16px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-actions .btn {
+    width: 100%;
+  }
+
+  .pool-map {
+    height: 240px;
+    min-height: 240px;
+  }
+
+  .chart-wrap {
+    height: 200px;
   }
 }
