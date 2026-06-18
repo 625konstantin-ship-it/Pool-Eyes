@@ -7,10 +7,62 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="container">
-    <header>
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-card">
       <h1>Учёт параметров бассейна</h1>
-      <p class="subtitle">Контроль pH, хлора, температуры и состояния воды</p>
+      <p class="subtitle">Войдите или создайте учётную запись</p>
+
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" data-tab="login">Вход</button>
+        <button type="button" class="auth-tab" data-tab="register">Регистрация</button>
+      </div>
+
+      <form id="loginForm" class="auth-form">
+        <div class="field">
+          <label for="loginUsername">Логин</label>
+          <input type="text" id="loginUsername" autocomplete="username" placeholder="Ваш логин" required minlength="3" maxlength="30">
+        </div>
+        <div class="field">
+          <label for="loginPassword">Пароль</label>
+          <input type="password" id="loginPassword" autocomplete="current-password" placeholder="Пароль" required minlength="4">
+        </div>
+        <p id="loginError" class="message error" hidden></p>
+        <button type="submit" class="btn btn-primary btn-full">Войти</button>
+      </form>
+
+      <form id="registerForm" class="auth-form hidden">
+        <div class="field">
+          <label for="registerUsername">Логин</label>
+          <input type="text" id="registerUsername" autocomplete="username" placeholder="Придумайте логин" required minlength="3" maxlength="30">
+        </div>
+        <div class="field">
+          <label for="registerPassword">Пароль</label>
+          <input type="password" id="registerPassword" autocomplete="new-password" placeholder="Минимум 4 символа" required minlength="4">
+        </div>
+        <div class="field">
+          <label for="registerPasswordConfirm">Повторите пароль</label>
+          <input type="password" id="registerPasswordConfirm" autocomplete="new-password" placeholder="Ещё раз пароль" required minlength="4">
+        </div>
+        <p id="registerError" class="message error" hidden></p>
+        <button type="submit" class="btn btn-primary btn-full">Зарегистрироваться</button>
+      </form>
+
+      <p class="auth-note">Данные хранятся на этом компьютере в браузере. Каждый пользователь видит только свои бассейны.</p>
+    </div>
+  </div>
+
+  <div id="appScreen" class="container hidden">
+    <header>
+      <div class="header-row">
+        <div>
+          <h1>Учёт параметров бассейна</h1>
+          <p class="subtitle">Контроль pH, хлора, температуры и состояния воды</p>
+        </div>
+        <div class="user-bar">
+          <span id="currentUserLabel" class="user-label"></span>
+          <button type="button" id="logoutBtn" class="btn btn-secondary btn-small">Выйти</button>
+        </div>
+      </div>
     </header>
 
     <section class="card pool-selector">
@@ -27,18 +79,27 @@
       <section class="card pool-info">
         <h2 id="activePoolName">—</h2>
         <p id="activePoolMeta" class="meta"></p>
-        <div class="volume-row">
-          <label for="volumeSelect">Объём бассейна</label>
-          <select id="volumeSelect">
-            <option value="10000">10 000 л</option>
-            <option value="25000">25 000 л</option>
-            <option value="50000">50 000 л</option>
-            <option value="75000">75 000 л</option>
-            <option value="custom">Свой объём...</option>
-          </select>
-          <div id="customVolumeWrap" class="custom-volume hidden">
-            <input type="number" id="customVolume" min="1000" max="500000" step="100" placeholder="Литры">
-            <button type="button" id="saveVolumeBtn" class="btn btn-secondary">Сохранить объём</button>
+        <div class="pool-settings">
+          <div class="volume-row">
+            <label for="volumeSelect">Объём бассейна</label>
+            <select id="volumeSelect">
+              <option value="10000">10 000 л</option>
+              <option value="25000">25 000 л</option>
+              <option value="50000">50 000 л</option>
+              <option value="75000">75 000 л</option>
+              <option value="custom">Свой объём...</option>
+            </select>
+            <div id="customVolumeWrap" class="custom-volume hidden">
+              <input type="number" id="customVolume" min="1000" max="500000" step="100" placeholder="Литры">
+              <button type="button" id="saveVolumeBtn" class="btn btn-secondary">Сохранить объём</button>
+            </div>
+          </div>
+          <div class="volume-row">
+            <label for="treatmentSelect">Обработка воды</label>
+            <select id="treatmentSelect">
+              <option value="chlorine">На хлоре</option>
+              <option value="peroxide">На перекиси</option>
+            </select>
           </div>
         </div>
       </section>
@@ -52,8 +113,8 @@
               <input type="number" id="ph" step="0.1" min="0" max="14" placeholder="7.4" required>
             </div>
             <div class="field">
-              <label for="chlorine">Свободный хлор (мг/л)</label>
-              <input type="number" id="chlorine" step="0.1" min="0" max="10" placeholder="1.5" required>
+              <label for="chlorine" id="chlorineLabel">Свободный хлор (мг/л)</label>
+              <input type="number" id="chlorine" step="0.1" min="0" max="100" placeholder="1.5" required>
             </div>
             <div class="field">
               <label for="temperature">Температура (°C)</label>
@@ -62,6 +123,78 @@
           </div>
           <button type="submit" class="btn btn-primary">Сохранить измерение</button>
         </form>
+      </section>
+
+      <section class="card">
+        <h2>Добавление химии</h2>
+        <p class="hint">Запишите, какую химию и в каком количестве вы добавили, а также что меняли на бассейне.</p>
+        <form id="chemistryForm">
+          <div class="form-grid">
+            <div class="field">
+              <label for="chemicalName">Химия / препарат</label>
+              <select id="chemicalName">
+                <option value="Хлор (таблетки)">Хлор (таблетки)</option>
+                <option value="Хлор (гранулы)">Хлор (гранулы)</option>
+                <option value="Шоковый хлор">Шоковый хлор</option>
+                <option value="pH-минус">pH-минус</option>
+                <option value="pH-плюс">pH-плюс</option>
+                <option value="pH (регулятор)">pH (регулятор)</option>
+                <option value="Флокулянт">Флокулянт</option>
+                <option value="Стопметал">Стопметал</option>
+                <option value="Перекись водорода">Перекись</option>
+                <option value="Альгицид">Альгицид</option>
+                <option value="Стабилизатор">Стабилизатор (CYA)</option>
+                <option value="Препарат от металлов">Препарат от металлов</option>
+                <option value="custom">Другое...</option>
+              </select>
+            </div>
+            <div class="field hidden" id="customChemicalWrap">
+              <label for="customChemical">Название</label>
+              <input type="text" id="customChemical" maxlength="80" placeholder="Введите название">
+            </div>
+            <div class="field">
+              <label for="chemicalAmount">Количество</label>
+              <input type="number" id="chemicalAmount" step="0.1" min="0" placeholder="500" required>
+            </div>
+            <div class="field">
+              <label for="chemicalUnit">Единица</label>
+              <select id="chemicalUnit">
+                <option value="г">г</option>
+                <option value="кг">кг</option>
+                <option value="мл">мл</option>
+                <option value="л">л</option>
+                <option value="таб.">таблеток</option>
+                <option value="мг">мг</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="chemicalComment">Комментарий (что заменено / сделано)</label>
+            <textarea id="chemicalComment" rows="2" maxlength="500" placeholder="Например: заменён песок в фильтре, промыта сетка skimmer"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Сохранить запись</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <div class="history-header">
+          <h2>История химии и работ</h2>
+          <button type="button" id="clearChemistryBtn" class="btn btn-danger btn-small">Очистить</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Дата</th>
+                <th>Химия</th>
+                <th>Кол-во</th>
+                <th>Комментарий</th>
+              </tr>
+            </thead>
+            <tbody id="chemistryBody"></tbody>
+          </table>
+        </div>
+        <p id="emptyChemistry" class="empty">Пока нет записей о химии для этого бассейна.</p>
       </section>
 
       <section class="card">
@@ -97,7 +230,7 @@
               <tr>
                 <th>Дата</th>
                 <th>pH</th>
-                <th>Хлор</th>
+                <th id="historyChlorineHeader">Хлор</th>
                 <th>Темп.</th>
                 <th>Статус</th>
               </tr>
@@ -109,7 +242,7 @@
       </section>
     </div>
 
-    <p id="noPoolHint" class="no-pool">Выберите бассейн из списка или добавьте новый.</p>
+    <p id="noPoolHint" class="no-pool hidden">Выберите бассейн из списка или добавьте новый.</p>
   </div>
 
   <div id="addPoolModal" class="modal hidden" role="dialog" aria-labelledby="modalTitle" aria-modal="true">
@@ -134,6 +267,13 @@
         </div>
         <div id="newCustomVolumeWrap" class="custom-volume hidden">
           <input type="number" id="newCustomVolume" min="1000" max="500000" step="100" placeholder="Литры">
+        </div>
+        <div class="field">
+          <label for="newPoolTreatment">Обработка воды</label>
+          <select id="newPoolTreatment">
+            <option value="chlorine">На хлоре</option>
+            <option value="peroxide">На перекиси</option>
+          </select>
         </div>
         <p id="modalError" class="message error" hidden></p>
         <div class="modal-actions">
