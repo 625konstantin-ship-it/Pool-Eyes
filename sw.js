@@ -1,8 +1,11 @@
-const CACHE = 'pool-eyes-v20';
+const CACHE = 'pool-eyes-v23';
 
 const SHELL = [
   './',
   './index.html',
+  './problems.html',
+  './problems.js',
+  './pool-problems.js',
   './manifest.webmanifest',
   './icons/icon-180.png',
   './icons/icon-192.png',

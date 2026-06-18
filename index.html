@@ -13,7 +13,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=2">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=2">
   <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png?v=2">
-  <link rel="stylesheet" href="styles.css?v=21">
+  <link rel="stylesheet" href="styles.css?v=23">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
@@ -142,8 +142,8 @@
           </button>
         </div>
         <p id="activePoolMeta" class="meta"></p>
-        <p id="locationSummaryText" class="pool-location-line muted">Локация не указана</p>
-        <a id="routeGoogleCompact" class="pool-location-route hidden" target="_blank" rel="noopener noreferrer">Маршрут в Google Maps</a>
+        <p id="locationSummaryText" class="pool-location-line hidden"></p>
+        <a id="routeGoogleCompact" class="btn btn-secondary btn-small pool-location-route hidden" target="_blank" rel="noopener noreferrer">Маршрут в Google Maps</a>
         <div id="locationPopover" class="location-popover hidden">
           <p class="hint location-popover-hint">Введите адрес, нажмите на карту или используйте GPS — затем сохраните.</p>
           <div class="field">
@@ -157,10 +157,6 @@
           </div>
           <div id="poolMap" class="pool-map"></div>
           <p id="locationStatus" class="location-status hint">Кликните на карту, чтобы поставить метку.</p>
-          <div id="routeActions" class="route-actions hidden">
-            <span class="route-label">Маршрут до бассейна:</span>
-            <a id="routeGoogle" class="btn btn-secondary btn-small" target="_blank" rel="noopener noreferrer">Google Maps — маршрут</a>
-          </div>
         </div>
         <div id="poolSettingsView" class="pool-settings-view">
           <p class="pool-info-line"><span class="pool-info-label">Объём:</span> <span id="poolVolumeDisplay">—</span></p>
@@ -390,11 +386,10 @@
         <p id="emptyChemistry" class="empty">Пока нет записей о химии для этого бассейна.</p>
       </section>
 
-      <section class="card">
+      <section class="card problems-entry-card">
         <h2>Проблемы с водой</h2>
-        <p class="hint">Отметьте, что вы наблюдаете в бассейне — появятся рекомендации по устранению.</p>
-        <div class="problems-grid" id="problemsGrid"></div>
-        <div id="problemRecommendations" class="recommendations"></div>
+        <p class="hint">Если вода мутная, зелёная или есть другие симптомы — откройте раздел с рекомендациями.</p>
+        <a href="problems.html" class="btn btn-danger btn-full btn-problem">Проблема</a>
       </section>
 
       <section class="card">
@@ -452,6 +447,6 @@
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.min.js"></script>
-  <script src="app.js?v=21"></script>
+  <script src="app.js?v=23"></script>
 </body>
 </html>

@@ -430,16 +430,8 @@ td.comment-cell {
 
 .pool-location-route {
   display: inline-block;
-  margin-top: 6px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #1a8fc7;
+  margin-top: 8px;
   text-decoration: none;
-}
-
-.pool-location-route:hover {
-  color: #1578ab;
-  text-decoration: underline;
 }
 
 .location-popover {
@@ -895,6 +887,125 @@ td.comment-cell {
 .rec-item strong {
   display: block;
   margin-bottom: 4px;
+}
+
+.problems-entry-card {
+  text-align: center;
+}
+
+.btn-problem {
+  margin-top: 8px;
+  padding: 14px 24px;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.problems-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  color: #0d4a6b;
+}
+
+.problems-page-header .back-link {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: #1a8fc7;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.problems-page-header .back-link:hover {
+  text-decoration: underline;
+}
+
+.ai-assistant-card {
+  border: 2px solid #d8eaf4;
+}
+
+.ai-mode-status {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 14px;
+}
+
+.ai-mode-status.manual {
+  background: #e8f4fc;
+  color: #0d4a6b;
+}
+
+.ai-mode-status.ai-ready {
+  background: #e6f7ed;
+  color: #1a5c32;
+}
+
+.ai-mode-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.ai-mode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 2px solid #d8eaf4;
+  border-radius: 10px;
+  cursor: pointer;
+  background: #f8fcff;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.ai-mode-option:hover:not(.disabled) {
+  border-color: #7ec8e3;
+}
+
+.ai-mode-option.selected {
+  border-color: #1a8fc7;
+  background: #e0f4ff;
+}
+
+.ai-mode-option.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ai-mode-option input {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+}
+
+.ai-mode-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ai-mode-label strong {
+  font-size: 0.92rem;
+}
+
+.ai-mode-desc {
+  font-size: 0.8rem;
+  color: #6a8a9a;
+}
+
+.ai-connect-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-connect-hint {
+  margin: 0;
 }
 
 .charts {

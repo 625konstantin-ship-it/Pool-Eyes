@@ -4,3 +4,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 // Имя Telegram-бота без @ (см. TELEGRAM_SETUP.md)
 const TELEGRAM_BOT_USERNAME = 'PoolEyesKyiv_bot';
+
+// AI-асистент для раздела «Проблемы с водой» (пока выключен)
+const AI_ASSISTANT_ENABLED = false;

@@ -10,50 +10,6 @@ const TREATMENT_LABELS = {
   peroxide: 'На перекиси'
 };
 
-const POOL_PROBLEMS = [
-  { id: 'clear', label: 'Вода прозрачная', desc: 'Нормальное состояние', recommendations: [
-    { level: 'ok', title: 'Вода в порядке', text: 'Прозрачная вода — признак сбалансированной химии и работающей фильтрации. Продолжайте регулярные измерения pH и хлора.' }
-  ]},
-  { id: 'cloudy', label: 'Вода мутная', desc: 'Плохая видимость на глубине', recommendations: [
-    { level: 'warn', title: 'Мутная вода', text: 'Частые причины: низкий хлор, высокий pH, много органики или сбой фильтра. Проверьте pH (7.2–7.6) и хлор (1–3 мг/л). Усильте фильтрацию 24–48 ч, добавьте коагулянт по инструкции.' },
-    { level: 'info', title: 'Дополнительно', text: 'Пропылесосьте дно, промойте фильтр. При сильной мутности — шоковое хлорирование.' }
-  ]},
-  { id: 'green', label: 'Зелёная вода', desc: 'Цветение водорослей', recommendations: [
-    { level: 'crit', title: 'Зелёная вода — водоросли', text: 'Недостаточно хлора. Проведите шоковое хлорирование. Очистите стены щёткой, включите фильтр на сутки.' },
-    { level: 'warn', title: 'Профилактика', text: 'Поддерживайте хлор 1–3 мг/л, pH 7.2–7.6. Добавьте альгицид.' }
-  ]},
-  { id: 'white', label: 'Белая / молочная вода', desc: 'Взвесь, известь или переизбыток хлора', recommendations: [
-    { level: 'warn', title: 'Белёсая вода', text: 'Часто из-за высокого pH (>7.8) или переизбытка хлора. Проверьте pH и понизьте pH-минусом при необходимости.' },
-    { level: 'info', title: 'Что делать', text: 'Дайте фильтру поработать 4–8 ч. Не передозируйте порошковый хлор.' }
-  ]},
-  { id: 'yellow', label: 'Жёлтая / металлическая вода', desc: 'Железо, медь, марганец', recommendations: [
-    { level: 'warn', title: 'Желтоватый оттенок', text: 'Обычно железо или медь в воде. Используйте препарат от металлов.' },
-    { level: 'info', title: 'Металлический блеск', text: 'Понизьте pH, добавьте препарат от металлов, пропылесосьте дно.' }
-  ]},
-  { id: 'foam', label: 'Пена на поверхности', desc: 'Моющие средства, органика', recommendations: [
-    { level: 'warn', title: 'Пена на воде', text: 'Часто от остатков моющих средств или косметики. Снизьте использование моющих средств.' },
-    { level: 'info', title: 'Устранение', text: 'Добавьте антипену, усильте хлорирование и фильтрацию.' }
-  ]},
-  { id: 'sediment_bottom', label: 'Осадок на дне', desc: 'Пыль, песок, хлопья', recommendations: [
-    { level: 'warn', title: 'Осадок на дне', text: 'Пропылесосьте дно. Проверьте хлор — при низком уровне осадок может быть мёртвыми водорослями.' },
-    { level: 'info', title: 'Фильтрация', text: 'Промойте фильтр. Используйте флокулянт при необходимости.' }
-  ]},
-  { id: 'floating', label: 'Взвесь / хлопья в воде', desc: 'Плавающие частицы', recommendations: [
-    { level: 'warn', title: 'Плавающие частицы', text: 'Часто после шокового хлорирования или при цветении водорослей. Включите фильтр, пропылесосьте.' },
-    { level: 'info', title: 'Действия', text: 'Белые хлопья — возможен переизбыток химии. Зелёные — нужен хлор и щётка.' }
-  ]},
-  { id: 'slippery', label: 'Скользкие стены', desc: 'Биоплёнка, водоросли', recommendations: [
-    { level: 'warn', title: 'Скользкость', text: 'Ранний признак водорослей. Почистите стены щёткой, повысьте хлор, добавьте альгицид.' }
-  ]},
-  { id: 'smell', label: 'Запах хлора / «болотный»', desc: 'Хлорамины или органика', recommendations: [
-    { level: 'warn', title: 'Резкий запах хлора', text: 'Часто при хлораминах — нужно шоковое хлорирование.' },
-    { level: 'crit', title: 'Болотный запах', text: 'Срочно шоковое хлорирование, очистка фильтра.' }
-  ]},
-  { id: 'eye_irritation', label: 'Щиплет глаза / кожу', desc: 'pH или хлорамины', recommendations: [
-    { level: 'warn', title: 'Раздражение', text: 'Чаще всего pH вне 7.2–7.6. Измерьте pH и свободный хлор.' }
-  ]}
-];
-
 let currentUser = null;
 let poolList = [];
 let activePoolId = null;
@@ -482,7 +438,6 @@ async function handleForgot(e) {
 
 async function handleLogout() {
   closeUserMenu();
-  await saveCurrentPoolProblems();
   await authSignOut();
   currentUser = null;
   poolList = [];
@@ -563,7 +518,6 @@ async function setActivePool(poolId) {
   const pool = poolList.find(p => p.id === poolId);
   if (!pool) return false;
 
-  await saveCurrentPoolProblems();
   activePoolId = pool.id;
   saveActivePoolId();
   setMeasurementHistoryOpen(false);
@@ -578,23 +532,6 @@ async function setActivePool(poolId) {
 
   renderPoolContent();
   return true;
-}
-
-async function saveCurrentPoolProblems() {
-  if (!activePoolId || !currentUser) return;
-  const grid = document.getElementById('problemsGrid');
-  if (grid) {
-    const checked = [...grid.querySelectorAll('input:checked')].map(el => el.value);
-    selectedProblems[activePoolId] = checked;
-  }
-  const pool = getActivePool();
-  if (pool) {
-    try {
-      await dbUpsertPool(currentUser.id, pool, selectedProblems[activePoolId] || []);
-    } catch (err) {
-      await handleDbError(err, 'saveProblems');
-    }
-  }
 }
 
 function getPoolMeasurements(poolId) {
@@ -1131,8 +1068,6 @@ function refreshMapSize() {
 }
 
 function updateRouteLinks(lat, lng, address) {
-  const routeActions = document.getElementById('routeActions');
-  const routeLink = document.getElementById('routeGoogle');
   const routeCompact = document.getElementById('routeGoogleCompact');
 
   let href = null;
@@ -1143,14 +1078,11 @@ function updateRouteLinks(lat, lng, address) {
   }
 
   if (href) {
-    routeActions?.classList.remove('hidden');
-    if (routeLink) routeLink.href = href;
     routeCompact?.classList.remove('hidden');
     if (routeCompact) routeCompact.href = href;
     return;
   }
 
-  routeActions?.classList.add('hidden');
   routeCompact?.classList.add('hidden');
 }
 
@@ -1163,7 +1095,7 @@ function setMapMarker(lat, lng, pan = true) {
     poolMarker = L.marker([lat, lng], { draggable: true }).addTo(poolMap);
     poolMarker.on('dragend', () => {
       const pos = poolMarker.getLatLng();
-      updateLocationStatus(`Метка: ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)} — нажмите «Сохранить локацию»`);
+      updateLocationStatus('Метка на карте — нажмите «Сохранить локацию»');
       updateRouteLinks(pos.lat, pos.lng, document.getElementById('poolAddress')?.value);
     });
   }
@@ -1172,7 +1104,7 @@ function setMapMarker(lat, lng, pan = true) {
     poolMap.setView([lat, lng], Math.max(poolMap.getZoom(), 14));
   }
   updateRouteLinks(lat, lng, document.getElementById('poolAddress')?.value);
-  updateLocationStatus(`Метка: ${lat.toFixed(5)}, ${lng.toFixed(5)} — нажмите «Сохранить локацию»`);
+  updateLocationStatus('Метка на карте — нажмите «Сохранить локацию»');
 }
 
 function getMarkerCoords() {
@@ -1236,7 +1168,7 @@ function initPoolMap(pool) {
 
     if (hasCoords) {
       setMapMarker(loc.lat, loc.lng, false);
-      updateLocationStatus(loc.address || `Сохранено: ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`);
+      updateLocationStatus(loc.address || 'Локация сохранена');
     } else {
       updateLocationStatus('Кликните на карту, чтобы поставить метку, или найдите адрес.');
     }
@@ -1266,15 +1198,13 @@ function updateLocationSummary(pool) {
   if (!el) return;
 
   const loc = pool?.location || normalizeLocation(null);
+
   if (loc.address) {
     el.textContent = loc.address;
-    el.classList.remove('muted');
-  } else if (loc.lat != null && loc.lng != null) {
-    el.textContent = `${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`;
-    el.classList.remove('muted');
+    el.classList.remove('hidden');
   } else {
-    el.textContent = 'Локация не указана';
-    el.classList.add('muted');
+    el.textContent = '';
+    el.classList.add('hidden');
   }
 
   if (btn) {
@@ -1398,7 +1328,7 @@ async function savePoolLocation() {
   }
   syncRouteFromPool(pool);
   updateLocationSummary(pool);
-  updateLocationStatus(pool.location.address || `Сохранено: ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`);
+  updateLocationStatus(pool.location.address || 'Локация сохранена');
   document.getElementById('activePoolMeta').textContent = formatPoolMeta(
     pool,
     getPoolMeasurements(pool.id),
@@ -1510,60 +1440,6 @@ function renderRecommendations(container, recs) {
   container.innerHTML = recs.map(r =>
     `<div class="rec-item ${r.level}"><strong>${escapeHtml(r.title)}</strong>${escapeHtml(r.text)}</div>`
   ).join('');
-}
-
-function renderProblemsGrid() {
-  const grid = document.getElementById('problemsGrid');
-  const poolProblems = selectedProblems[activePoolId] || [];
-
-  grid.innerHTML = POOL_PROBLEMS.map(p => `
-    <label class="problem-item ${poolProblems.includes(p.id) ? 'selected' : ''}">
-      <input type="checkbox" value="${p.id}" ${poolProblems.includes(p.id) ? 'checked' : ''}>
-      <div>
-        <div class="problem-label">${escapeHtml(p.label)}</div>
-        <div class="problem-desc">${escapeHtml(p.desc)}</div>
-      </div>
-    </label>
-  `).join('');
-
-  grid.querySelectorAll('.problem-item').forEach(label => {
-    const checkbox = label.querySelector('input');
-    checkbox.addEventListener('change', () => {
-      label.classList.toggle('selected', checkbox.checked);
-      updatePoolProblems();
-    });
-  });
-}
-
-function updatePoolProblems() {
-  const checked = [...document.querySelectorAll('#problemsGrid input:checked')].map(el => el.value);
-  selectedProblems[activePoolId] = checked;
-  const pool = getActivePool();
-  if (pool && currentUser) {
-    dbUpsertPool(currentUser.id, pool, checked).catch(err => handleDbError(err, 'saveProblems'));
-  }
-  renderProblemRecommendations(checked);
-}
-
-function renderProblemRecommendations(problemIds) {
-  const container = document.getElementById('problemRecommendations');
-
-  if (!problemIds || problemIds.length === 0) {
-    container.innerHTML = '<div class="rec-item info"><strong>Выберите проблемы</strong>Отметьте ситуации, которые видите в бассейне.</div>';
-    return;
-  }
-
-  const recs = [];
-  problemIds.forEach(id => {
-    const problem = POOL_PROBLEMS.find(p => p.id === id);
-    if (problem) {
-      problem.recommendations.forEach(r => {
-        recs.push({ ...r, title: `${problem.label}: ${r.title}` });
-      });
-    }
-  });
-
-  renderRecommendations(container, recs);
 }
 
 function renderPoolSelect() {
@@ -1753,8 +1629,6 @@ function renderPoolContent() {
   syncMeasurementLabels(treatmentType);
   syncPoolReminderUI(pool);
   renderLocationUI(pool);
-  renderProblemsGrid();
-  renderProblemRecommendations(selectedProblems[pool.id] || []);
   renderChemistryHistory(poolChem);
   renderPhotoGallery(pool.id);
 
@@ -2235,8 +2109,24 @@ async function init() {
 
 document.addEventListener('DOMContentLoaded', init);
 
+function isLocalDevHost() {
+  const host = window.location.hostname;
+  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+}
+
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
+
+  if (isLocalDevHost()) {
+    navigator.serviceWorker.getRegistrations().then(async regs => {
+      const hadSw = regs.length > 0 || Boolean(navigator.serviceWorker.controller);
+      await Promise.all(regs.map(reg => reg.unregister()));
+      const keys = await caches.keys();
+      await Promise.all(keys.map(key => caches.delete(key)));
+      if (hadSw) window.location.reload();
+    });
+    return;
+  }
 
   let refreshing = false;
   let swRegistration = null;
@@ -2250,7 +2140,7 @@ function registerServiceWorker() {
   const checkForSwUpdate = () => swRegistration?.update().catch(() => {});
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=20')
+    navigator.serviceWorker.register('./sw.js?v=22')
       .then(reg => {
         swRegistration = reg;
         if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
