@@ -34,7 +34,7 @@ header {
 }
 
 .app-header {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .header-row {
@@ -43,11 +43,15 @@ header {
   align-items: stretch;
   gap: 14px;
   width: 100%;
+  position: relative;
 }
 
 .header-title {
   width: 100%;
   text-align: center;
+  padding-right: 52px;
+  padding-left: 52px;
+  box-sizing: border-box;
 }
 
 .header-title h1 {
@@ -60,28 +64,85 @@ header {
   margin-top: 6px;
 }
 
-.user-bar {
+.user-menu {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 20;
+}
+
+.user-menu-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid #d8eaf4;
+  background: #e0f4ff;
+  color: #0d4a6b;
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.15s, border-color 0.15s;
 }
 
-.user-label {
-  font-size: 0.85rem;
+.user-menu-btn:hover {
+  background: #cce9f7;
+  border-color: #1a8fc7;
+}
+
+.user-menu-btn[aria-expanded="true"] {
+  background: #1a8fc7;
+  border-color: #1a8fc7;
+  color: #fff;
+}
+
+.user-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 240px;
+  background: #fff;
+  border: 1px solid #d8eaf4;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(13, 74, 107, 0.18);
+  padding: 6px 0;
+  overflow: hidden;
+}
+
+.user-menu-email {
+  padding: 10px 14px 12px;
+  font-size: 0.82rem;
   color: #3d6b80;
-  font-weight: 600;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-  text-align: center;
+  border-bottom: 1px solid #e0eef4;
+  word-break: break-all;
   line-height: 1.35;
+  margin: 0;
 }
 
-.btn-logout {
+.user-menu-item {
+  display: block;
   width: 100%;
-  max-width: 280px;
-  margin: 0 auto;
+  text-align: left;
+  padding: 11px 14px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.92rem;
+  color: #0d4a6b;
+  cursor: pointer;
+}
+
+.user-menu-item:hover {
+  background: #f0f8fc;
+}
+
+.user-menu-item-danger {
+  color: #c94a4a;
+}
+
+.user-menu-item-danger:hover {
+  background: #fde8e8;
 }
 
 @media (min-width: 769px) {
@@ -96,27 +157,8 @@ header {
     flex: 1;
     min-width: 0;
     text-align: left;
-  }
-
-  .user-bar {
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-end;
-    flex-shrink: 0;
-    width: auto;
-    max-width: 42%;
-  }
-
-  .user-label {
-    text-align: right;
-    font-size: 0.9rem;
-  }
-
-  .btn-logout {
-    width: auto;
-    max-width: none;
-    margin: 0;
-    flex-shrink: 0;
+    padding-right: 56px;
+    padding-left: 0;
   }
 }
 
@@ -243,8 +285,68 @@ select:focus, input:focus, textarea:focus {
   text-align: left;
 }
 
+.auth-form-hint {
+  margin-bottom: 14px;
+  text-align: left;
+}
+
 .auth-form .field {
   margin-bottom: 14px;
+}
+
+.auth-form .field label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  color: #0d4a6b;
+}
+
+.auth-form input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 46px;
+  padding: 12px 14px;
+  border: 1px solid #b8d4e3;
+  border-radius: 10px;
+  font-size: 16px;
+  line-height: 1.3;
+  background: #f8fcff;
+  color: #1a3a4a;
+  font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.auth-form input:focus {
+  outline: none;
+  border-color: #2a9fd6;
+  box-shadow: 0 0 0 3px rgba(42, 159, 214, 0.22);
+}
+
+.auth-form input::placeholder {
+  color: #8aa8b8;
+  opacity: 1;
+}
+
+.auth-form input:-webkit-autofill,
+.auth-form input:-webkit-autofill:hover,
+.auth-form input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #f8fcff inset;
+  -webkit-text-fill-color: #1a3a4a;
+  caret-color: #1a3a4a;
+  border: 1px solid #b8d4e3;
+}
+
+.auth-form .message {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.auth-form .btn-full {
+  margin-top: 4px;
 }
 
 .btn-full {
