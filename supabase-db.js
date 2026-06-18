@@ -38,7 +38,9 @@ function mapPoolRow(row) {
     name: row.name,
     volume: Number(row.volume) || 25000,
     treatmentType: row.treatment_type === 'peroxide' ? 'peroxide' : 'chlorine',
-    location: row.location || { address: '', lat: null, lng: null }
+    location: row.location || { address: '', lat: null, lng: null },
+    remindersEnabled: !!row.reminders_enabled,
+    reminderIntervalDays: Number(row.reminder_interval_days) || 7
   };
 }
 
@@ -189,7 +191,9 @@ async function dbUpsertPool(userId, pool, problemIds) {
     volume: pool.volume,
     treatment_type: pool.treatmentType || 'chlorine',
     location: pool.location || { address: '', lat: null, lng: null },
-    problem_ids: problemIds || []
+    problem_ids: problemIds || [],
+    reminders_enabled: !!pool.remindersEnabled,
+    reminder_interval_days: Number(pool.reminderIntervalDays) || 7
   });
   if (error) throw error;
 }

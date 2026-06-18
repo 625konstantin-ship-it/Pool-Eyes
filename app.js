@@ -72,6 +72,7 @@ let pendingPasswordRecovery = false;
 let telegramSettings = null;
 let telegramConnectPending = false;
 let telegramPollTimer = null;
+let telegramPanelOpen = false;
 const MAP_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const MAP_TILE_FALLBACK_URL = 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png';
 const LEAFLET_ICON_BASE = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/';
@@ -177,7 +178,9 @@ function normalizeStoredData() {
       name: String(p.name),
       volume: Number(p.volume) || 25000,
       treatmentType: p.treatmentType === 'peroxide' ? 'peroxide' : 'chlorine',
-      location: normalizeLocation(p.location)
+      location: normalizeLocation(p.location),
+      remindersEnabled: !!p.remindersEnabled,
+      reminderIntervalDays: Number(p.reminderIntervalDays) || 7
     }));
 
   measurements = measurements
@@ -488,6 +491,7 @@ async function handleLogout() {
   selectedProblems = {};
   measurementHistoryOpen = false;
   telegramSettings = null;
+  telegramPanelOpen = false;
   destroyCharts();
   destroyPoolMap(true);
   showAuthScreen();
@@ -771,6 +775,39 @@ function populateReminderHourSelect() {
   }
 }
 
+function updateTelegramToggleButton() {
+  const btn = document.getElementById('toggleTelegramBtn');
+  if (!btn) return;
+
+  if (telegramPanelOpen) {
+    btn.textContent = 'Скрыть Telegram-напоминания';
+    btn.setAttribute('aria-expanded', 'true');
+    return;
+  }
+
+  btn.setAttribute('aria-expanded', 'false');
+  const enabledPools = poolList.filter(p => p.remindersEnabled).length;
+  if (telegramSettings?.telegramChatId && enabledPools > 0) {
+    const h = String(telegramSettings.reminderHour).padStart(2, '0');
+    btn.textContent = `Telegram • ${enabledPools} басс. • ${h}:00`;
+  } else if (telegramSettings?.telegramChatId) {
+    btn.textContent = 'Telegram • подключён';
+  } else {
+    btn.textContent = 'Telegram-напоминания';
+  }
+}
+
+function setTelegramPanelOpen(open) {
+  telegramPanelOpen = open;
+  const panel = document.getElementById('telegramDetailsPanel');
+  if (panel) panel.classList.toggle('hidden', !open);
+  updateTelegramToggleButton();
+}
+
+function toggleTelegramPanel() {
+  setTelegramPanelOpen(!telegramPanelOpen);
+}
+
 function showTelegramMessage(text, type = 'success') {
   const el = document.getElementById('telegramSettingsMessage');
   if (el) showMessage(el, text, type);
@@ -782,6 +819,7 @@ function renderTelegramRemindersUI() {
   if (!isTelegramBotConfigured()) {
     missing?.classList.remove('hidden');
     panel?.classList.add('hidden');
+    updateTelegramToggleButton();
     return;
   }
   missing?.classList.add('hidden');
@@ -807,11 +845,13 @@ function renderTelegramRemindersUI() {
   form?.classList.toggle('hidden', !connected);
   document.getElementById('telegramSettingsLocked')?.classList.toggle('hidden', connected);
 
-  if (!connected || !telegramSettings) return;
+  if (!connected || !telegramSettings) {
+    updateTelegramToggleButton();
+    return;
+  }
 
-  document.getElementById('remindersEnabled').checked = telegramSettings.remindersEnabled;
-  document.getElementById('reminderInterval').value = String(telegramSettings.reminderIntervalDays);
   document.getElementById('reminderHour').value = String(telegramSettings.reminderHour);
+  updateTelegramToggleButton();
 }
 
 async function loadTelegramSettings() {
@@ -865,7 +905,8 @@ function startTelegramConnectPoll() {
         telegramConnectPending = false;
         stopTelegramConnectPoll();
         renderTelegramRemindersUI();
-        showTelegramMessage('Telegram подключён! Настройте интервал и включите напоминания.', 'success');
+        syncPoolReminderUI(getActivePool());
+        showTelegramMessage('Telegram подключён! Включите напоминания в карточке каждого бассейна.', 'success');
       }
     } catch { /* retry */ }
   }, 3000);
@@ -879,7 +920,8 @@ async function handleCheckTelegram() {
     if (telegramSettings?.telegramChatId) {
       telegramConnectPending = false;
       stopTelegramConnectPoll();
-      showTelegramMessage('Telegram подключён! Настройте интервал и включите напоминания.', 'success');
+      showTelegramMessage('Telegram подключён! Включите напоминания в карточке каждого бассейна.', 'success');
+      syncPoolReminderUI(getActivePool());
     } else {
       showTelegramMessage('Пока не подключено. Нажмите Start в боте.', 'warn');
     }
@@ -907,30 +949,73 @@ async function handleSaveTelegramSettings(e) {
   e.preventDefault();
   if (!currentUser || !telegramSettings?.telegramChatId) return;
 
-  const remindersEnabled = document.getElementById('remindersEnabled').checked;
-  const reminderIntervalDays = parseInt(document.getElementById('reminderInterval').value, 10);
   const reminderHour = parseInt(document.getElementById('reminderHour').value, 10);
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Kyiv';
 
   try {
     telegramSettings = await dbSaveTelegramSettings(currentUser.id, {
-      remindersEnabled,
-      reminderIntervalDays,
       reminderHour,
       timezone
     });
-    showTelegramMessage('Настройки сохранены. Бот будет писать по расписанию.', 'success');
+    renderTelegramRemindersUI();
+    showTelegramMessage('Время сообщений сохранено.', 'success');
   } catch (err) {
     showTelegramMessage(err.message || 'Ошибка сохранения', 'error');
   }
 }
 
+function syncPoolReminderUI(pool) {
+  const block = document.getElementById('poolReminderBlock');
+  const options = document.getElementById('poolReminderOptions');
+  const telegramConnected = !!telegramSettings?.telegramChatId;
+
+  if (!block) return;
+
+  block.classList.toggle('hidden', !telegramConnected || !pool);
+
+  if (!pool || !telegramConnected) return;
+
+  const enabledEl = document.getElementById('poolRemindersEnabled');
+  const intervalEl = document.getElementById('poolReminderInterval');
+
+  if (enabledEl) enabledEl.checked = !!pool.remindersEnabled;
+  if (intervalEl) intervalEl.value = String(pool.reminderIntervalDays || 7);
+  if (options) options.classList.toggle('hidden', !pool.remindersEnabled);
+}
+
+async function handleSavePoolReminders() {
+  const pool = getActivePool();
+  if (!pool || !currentUser || !telegramSettings?.telegramChatId) return;
+
+  const enabled = document.getElementById('poolRemindersEnabled').checked;
+  const reminderIntervalDays = parseInt(document.getElementById('poolReminderInterval').value, 10);
+  const msgEl = document.getElementById('poolReminderMessage');
+
+  pool.remindersEnabled = enabled;
+  pool.reminderIntervalDays = reminderIntervalDays;
+
+  try {
+    await dbUpsertPool(currentUser.id, pool, selectedProblems[pool.id] || []);
+    syncPoolReminderUI(pool);
+    renderTelegramRemindersUI();
+    if (msgEl) showMessage(msgEl, enabled ? 'Напоминания для бассейна включены.' : 'Напоминания для бассейна выключены.', 'success');
+  } catch (err) {
+    if (msgEl) showMessage(msgEl, err.message || 'Ошибка сохранения', 'error');
+    await handleDbError(err, 'savePoolReminders');
+  }
+}
+
 function initTelegramReminders() {
   populateReminderHourSelect();
+  document.getElementById('toggleTelegramBtn')?.addEventListener('click', toggleTelegramPanel);
   document.getElementById('connectTelegramBtn')?.addEventListener('click', handleConnectTelegram);
   document.getElementById('checkTelegramBtn')?.addEventListener('click', handleCheckTelegram);
   document.getElementById('disconnectTelegramBtn')?.addEventListener('click', handleDisconnectTelegram);
   document.getElementById('telegramSettingsForm')?.addEventListener('submit', handleSaveTelegramSettings);
+  document.getElementById('poolRemindersEnabled')?.addEventListener('change', e => {
+    document.getElementById('poolReminderOptions')?.classList.toggle('hidden', !e.target.checked);
+  });
+  document.getElementById('savePoolRemindersBtn')?.addEventListener('click', handleSavePoolReminders);
   renderTelegramRemindersUI();
 }
 
@@ -1549,6 +1634,7 @@ function renderPoolContent() {
   syncVolumeSelect(pool.volume);
   syncTreatmentSelect(treatmentType);
   syncMeasurementLabels(treatmentType);
+  syncPoolReminderUI(pool);
   renderLocationUI(pool);
   renderProblemsGrid();
   renderProblemRecommendations(selectedProblems[pool.id] || []);
@@ -1771,7 +1857,9 @@ function initEventListeners() {
       name,
       volume,
       treatmentType: document.getElementById('newPoolTreatment').value === 'peroxide' ? 'peroxide' : 'chlorine',
-      location: { address: '', lat: null, lng: null }
+      location: { address: '', lat: null, lng: null },
+      remindersEnabled: false,
+      reminderIntervalDays: 7
     };
 
     try {

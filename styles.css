@@ -546,6 +546,50 @@ td.comment-cell {
   margin: 0;
 }
 
+.pool-reminder-block {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e0eef4;
+}
+
+.pool-reminder-toggle {
+  margin-bottom: 12px;
+}
+
+.pool-reminder-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pool-reminder-options.hidden {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .pool-reminder-options .btn {
+    width: 100%;
+  }
+}
+
+.telegram-toggle-btn {
+  margin: 0;
+}
+
+.telegram-details-panel {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e0eef4;
+}
+
+.telegram-intro-hint {
+  margin: 0 0 12px;
+}
+
+.telegram-intro-hint strong {
+  color: #0d4a6b;
+}
+
 .telegram-panel {
   display: flex;
   flex-direction: column;
