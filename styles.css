@@ -59,6 +59,7 @@ header {
   border-radius: 9px;
   flex-shrink: 0;
   display: block;
+  object-fit: cover;
   box-shadow: 0 2px 10px rgba(13, 74, 107, 0.18);
 }
 

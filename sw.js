@@ -1,4 +1,4 @@
-const CACHE = 'pool-eyes-v30';
+const CACHE = 'pool-eyes-v32';
 
 const SHELL = [
   './',
