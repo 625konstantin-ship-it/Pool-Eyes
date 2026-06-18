@@ -2037,6 +2037,8 @@ function initEventListeners() {
 }
 
 async function init() {
+  registerServiceWorker();
+
   if (!initSupabaseClient()) {
     showConfigError();
     return;
@@ -2064,3 +2066,10 @@ async function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
