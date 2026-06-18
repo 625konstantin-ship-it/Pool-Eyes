@@ -13,99 +13,107 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=2">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=2">
   <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png?v=2">
-  <link rel="stylesheet" href="styles.css?v=27">
+  <link rel="stylesheet" href="styles.css?v=30">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 </head>
-<body>
+<body data-page-title-key="app.pageTitle">
   <div id="authScreen" class="auth-screen">
     <div class="auth-card">
-      <h1>Учёт параметров бассейна</h1>
-      <p class="subtitle">Войдите или создайте учётную запись</p>
+      <div class="lang-switcher auth-lang-switcher" role="group" aria-label="Language">
+        <button type="button" class="lang-btn active" data-lang="ru" aria-pressed="true">RU</button>
+        <button type="button" class="lang-btn" data-lang="en" aria-pressed="false">EN</button>
+      </div>
+      <h1 data-i18n="app.title">Учёт параметров бассейна</h1>
+      <p class="subtitle" data-i18n="auth.subtitle">Войдите или создайте учётную запись</p>
 
       <div class="auth-tabs">
-        <button type="button" class="auth-tab active" data-tab="login">Вход</button>
-        <button type="button" class="auth-tab" data-tab="register">Регистрация</button>
-        <button type="button" class="auth-tab" data-tab="forgot">Сброс пароля</button>
+        <button type="button" class="auth-tab active" data-tab="login" data-i18n="auth.tab.login">Вход</button>
+        <button type="button" class="auth-tab" data-tab="register" data-i18n="auth.tab.register">Регистрация</button>
+        <button type="button" class="auth-tab" data-tab="forgot" data-i18n="auth.tab.forgot">Сброс пароля</button>
       </div>
 
       <p id="authProtocolWarn" class="message warn hidden"></p>
 
       <form id="loginForm" class="auth-form">
         <div class="field">
-          <label for="loginEmail">Email</label>
+          <label for="loginEmail" data-i18n="auth.email">Email</label>
           <input type="email" id="loginEmail" autocomplete="email" placeholder="email@example.com" required maxlength="80">
         </div>
         <div class="field">
-          <label for="loginPassword">Пароль</label>
-          <input type="password" id="loginPassword" autocomplete="current-password" placeholder="Пароль" required minlength="6">
+          <label for="loginPassword" data-i18n="auth.password">Пароль</label>
+          <input type="password" id="loginPassword" autocomplete="current-password" data-i18n-placeholder="auth.passwordPlaceholder" placeholder="Пароль" required minlength="6">
         </div>
         <p id="loginError" class="message error" hidden></p>
-        <button type="submit" class="btn btn-primary btn-full">Войти</button>
-        <p class="auth-link"><button type="button" id="gotoForgotBtn" class="link-btn">Забыли пароль?</button></p>
+        <button type="submit" class="btn btn-primary btn-full" data-i18n="auth.login">Войти</button>
+        <p class="auth-link"><button type="button" id="gotoForgotBtn" class="link-btn" data-i18n="auth.forgotLink">Забыли пароль?</button></p>
       </form>
 
       <form id="registerForm" class="auth-form hidden">
         <div class="field">
-          <label for="registerDisplayName">Имя (необязательно)</label>
-          <input type="text" id="registerDisplayName" autocomplete="name" placeholder="Как вас называть" maxlength="50">
+          <label for="registerDisplayName" data-i18n="auth.displayName">Имя (необязательно)</label>
+          <input type="text" id="registerDisplayName" autocomplete="name" data-i18n-placeholder="auth.displayNamePlaceholder" placeholder="Как вас называть" maxlength="50">
         </div>
         <div class="field">
-          <label for="registerEmail">Email</label>
+          <label for="registerEmail" data-i18n="auth.email">Email</label>
           <input type="email" id="registerEmail" autocomplete="email" placeholder="email@example.com" required maxlength="80">
         </div>
         <div class="field">
-          <label for="registerPassword">Пароль</label>
-          <input type="password" id="registerPassword" autocomplete="new-password" placeholder="Минимум 6 символов" required minlength="6">
+          <label for="registerPassword" data-i18n="auth.password">Пароль</label>
+          <input type="password" id="registerPassword" autocomplete="new-password" data-i18n-placeholder="auth.passwordMin" placeholder="Минимум 6 символов" required minlength="6">
         </div>
         <div class="field">
-          <label for="registerPasswordConfirm">Повторите пароль</label>
-          <input type="password" id="registerPasswordConfirm" autocomplete="new-password" placeholder="Ещё раз пароль" required minlength="6">
+          <label for="registerPasswordConfirm" data-i18n="auth.passwordConfirm">Повторите пароль</label>
+          <input type="password" id="registerPasswordConfirm" autocomplete="new-password" data-i18n-placeholder="auth.passwordConfirmPlaceholder" placeholder="Ещё раз пароль" required minlength="6">
         </div>
         <p id="registerError" class="message error" hidden></p>
         <p id="registerSuccess" class="message success" hidden></p>
-        <button type="submit" class="btn btn-primary btn-full">Зарегистрироваться</button>
+        <button type="submit" class="btn btn-primary btn-full" data-i18n="auth.register">Зарегистрироваться</button>
       </form>
 
       <form id="forgotForm" class="auth-form hidden">
-        <p class="hint auth-form-hint">Введите email — пришлём ссылку для нового пароля.</p>
+        <p class="hint auth-form-hint" data-i18n="auth.forgotHint">Введите email — пришлём ссылку для нового пароля.</p>
         <div class="field">
-          <label for="forgotEmail">Email</label>
+          <label for="forgotEmail" data-i18n="auth.email">Email</label>
           <input type="email" id="forgotEmail" autocomplete="email" placeholder="email@example.com" required maxlength="80">
         </div>
         <p id="forgotError" class="message error" hidden></p>
         <p id="forgotSuccess" class="message success" hidden></p>
-        <button type="submit" class="btn btn-primary btn-full">Отправить ссылку</button>
+        <button type="submit" class="btn btn-primary btn-full" data-i18n="auth.sendLink">Отправить ссылку</button>
       </form>
 
       <form id="newPasswordForm" class="auth-form hidden">
-        <p class="hint auth-form-hint">Придумайте новый пароль (минимум 6 символов).</p>
+        <p class="hint auth-form-hint" data-i18n="auth.newPasswordHint">Придумайте новый пароль (минимум 6 символов).</p>
         <div class="field">
-          <label for="newPassword">Новый пароль</label>
-          <input type="password" id="newPassword" autocomplete="new-password" placeholder="Минимум 6 символов" required minlength="6">
+          <label for="newPassword" data-i18n="auth.newPassword">Новый пароль</label>
+          <input type="password" id="newPassword" autocomplete="new-password" data-i18n-placeholder="auth.passwordMin" placeholder="Минимум 6 символов" required minlength="6">
         </div>
         <div class="field">
-          <label for="newPasswordConfirm">Повторите пароль</label>
-          <input type="password" id="newPasswordConfirm" autocomplete="new-password" placeholder="Ещё раз пароль" required minlength="6">
+          <label for="newPasswordConfirm" data-i18n="auth.passwordConfirm">Повторите пароль</label>
+          <input type="password" id="newPasswordConfirm" autocomplete="new-password" data-i18n-placeholder="auth.passwordConfirmPlaceholder" placeholder="Ещё раз пароль" required minlength="6">
         </div>
         <p id="newPasswordError" class="message error" hidden></p>
         <p id="newPasswordSuccess" class="message success" hidden></p>
-        <button type="submit" class="btn btn-primary btn-full">Сохранить пароль</button>
+        <button type="submit" class="btn btn-primary btn-full" data-i18n="auth.savePassword">Сохранить пароль</button>
       </form>
 
-      <p id="authConfigError" class="message error" hidden>Настройте Supabase в файле config.js</p>
-      <p class="auth-note">Данные хранятся в Supabase — доступ с любого устройства после входа.</p>
+      <p id="authConfigError" class="message error" hidden data-i18n="auth.configError">Настройте Supabase в файле config.js</p>
+      <p class="auth-note" data-i18n="auth.note">Данные хранятся в Supabase — доступ с любого устройства после входа.</p>
     </div>
   </div>
 
   <div id="appScreen" class="container hidden">
     <header class="app-header">
       <div class="header-row">
+        <div class="lang-switcher header-lang-switcher" role="group" aria-label="Language">
+          <button type="button" class="lang-btn active" data-lang="ru" aria-pressed="true">RU</button>
+          <button type="button" class="lang-btn" data-lang="en" aria-pressed="false">EN</button>
+        </div>
         <div class="header-title">
-          <h1>Учёт параметров бассейна</h1>
-          <p class="subtitle">Контроль pH, хлора, температуры и состояния воды</p>
+          <h1 data-i18n="app.title">Учёт параметров бассейна</h1>
+          <p class="subtitle" data-i18n="app.subtitle">Контроль pH, хлора, температуры и состояния воды</p>
         </div>
         <div class="user-menu" id="userMenu">
-          <button type="button" id="userMenuBtn" class="user-menu-btn" aria-expanded="false" aria-haspopup="true" aria-label="Меню пользователя">
+          <button type="button" id="userMenuBtn" class="user-menu-btn" aria-expanded="false" aria-haspopup="true" data-i18n-aria-label="user.menu" aria-label="Меню пользователя">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
               <circle cx="12" cy="7" r="4"/>
@@ -113,19 +121,19 @@
           </button>
           <div id="userMenuDropdown" class="user-menu-dropdown hidden" role="menu">
             <p class="user-menu-email" id="currentUserLabel"></p>
-            <button type="button" id="changePasswordBtn" class="user-menu-item" role="menuitem">Сменить пароль</button>
-            <button type="button" id="logoutBtn" class="user-menu-item user-menu-item-danger" role="menuitem">Выйти</button>
+            <button type="button" id="changePasswordBtn" class="user-menu-item" role="menuitem" data-i18n="user.changePassword">Сменить пароль</button>
+            <button type="button" id="logoutBtn" class="user-menu-item user-menu-item-danger" role="menuitem" data-i18n="user.logout">Выйти</button>
           </div>
         </div>
       </div>
     </header>
 
     <section class="card pool-selector">
-      <h2>Выберите бассейн</h2>
+      <h2 data-i18n="pool.select">Выберите бассейн</h2>
       <div class="selector-row">
-        <select id="poolSelect" aria-label="Сохранённые бассейны"></select>
-        <button type="button" id="addPoolBtn" class="btn btn-primary">+ Добавить бассейн</button>
-        <button type="button" id="deletePoolBtn" class="btn btn-danger" disabled>Удалить</button>
+        <select id="poolSelect" data-i18n-aria-label="pool.selectAria" aria-label="Сохранённые бассейны"></select>
+        <button type="button" id="addPoolBtn" class="btn btn-primary" data-i18n="pool.add">+ Добавить бассейн</button>
+        <button type="button" id="deletePoolBtn" class="btn btn-danger" disabled data-i18n="pool.delete">Удалить</button>
       </div>
       <p id="selectorMessage" class="message" hidden></p>
     </section>
@@ -134,7 +142,7 @@
       <section class="card pool-info">
         <div class="pool-title-row">
           <h2 id="activePoolName">—</h2>
-          <button type="button" id="toggleLocationBtn" class="location-icon-btn" aria-expanded="false" aria-label="Локация бассейна" title="Локация бассейна">
+          <button type="button" id="toggleLocationBtn" class="location-icon-btn" aria-expanded="false" data-i18n-aria-label="location.btn" data-i18n-title="location.btn" aria-label="Локация бассейна" title="Локация бассейна">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
               <circle cx="12" cy="10" r="3"/>
@@ -143,85 +151,85 @@
         </div>
         <p id="activePoolMeta" class="meta"></p>
         <p id="locationSummaryText" class="pool-location-line hidden"></p>
-        <a id="routeGoogleCompact" class="btn btn-secondary btn-small pool-location-route hidden" target="_blank" rel="noopener noreferrer">Маршрут в Google Maps</a>
+        <a id="routeGoogleCompact" class="btn btn-secondary btn-small pool-location-route hidden" target="_blank" rel="noopener noreferrer" data-i18n="location.routeGoogle">Маршрут в Google Maps</a>
         <div id="locationPopover" class="location-popover hidden">
-          <p class="hint location-popover-hint">Введите адрес, нажмите на карту или используйте GPS — затем сохраните.</p>
+          <p class="hint location-popover-hint" data-i18n="location.hint">Введите адрес, нажмите на карту или используйте GPS — затем сохраните.</p>
           <div class="field">
-            <label for="poolAddress">Адрес</label>
-            <input type="text" id="poolAddress" maxlength="200" placeholder="Город, улица, дом">
+            <label for="poolAddress" data-i18n="location.address">Адрес</label>
+            <input type="text" id="poolAddress" maxlength="200" data-i18n-placeholder="location.addressPlaceholder" placeholder="Город, улица, дом">
           </div>
           <div class="location-actions">
-            <button type="button" id="geocodeBtn" class="btn btn-secondary">Найти по адресу</button>
-            <button type="button" id="gpsBtn" class="btn btn-secondary">Моё местоположение</button>
-            <button type="button" id="saveLocationBtn" class="btn btn-primary">Сохранить локацию</button>
+            <button type="button" id="geocodeBtn" class="btn btn-secondary" data-i18n="location.geocode">Найти по адресу</button>
+            <button type="button" id="gpsBtn" class="btn btn-secondary" data-i18n="location.gps">Моё местоположение</button>
+            <button type="button" id="saveLocationBtn" class="btn btn-primary" data-i18n="location.save">Сохранить локацию</button>
           </div>
           <div id="poolMap" class="pool-map"></div>
-          <p id="locationStatus" class="location-status hint">Кликните на карту, чтобы поставить метку.</p>
+          <p id="locationStatus" class="location-status hint" data-i18n="location.clickMap">Кликните на карту, чтобы поставить метку.</p>
         </div>
         <div id="poolSettingsView" class="pool-settings-view">
-          <p class="pool-info-line"><span class="pool-info-label">Объём:</span> <span id="poolVolumeDisplay">—</span></p>
-          <p class="pool-info-line"><span class="pool-info-label">Обработка:</span> <span id="poolTreatmentDisplay">—</span></p>
-          <button type="button" id="editPoolBtn" class="btn btn-secondary btn-small">Изменить</button>
+          <p class="pool-info-line"><span class="pool-info-label" data-i18n="pool.volume">Объём:</span> <span id="poolVolumeDisplay">—</span></p>
+          <p class="pool-info-line"><span class="pool-info-label" data-i18n="pool.treatment">Обработка:</span> <span id="poolTreatmentDisplay">—</span></p>
+          <button type="button" id="editPoolBtn" class="btn btn-secondary btn-small" data-i18n="pool.edit">Изменить</button>
         </div>
         <div id="poolSettingsEdit" class="pool-settings pool-settings-edit hidden">
           <div class="volume-row">
-            <label for="volumeSelect">Объём бассейна</label>
+            <label for="volumeSelect" data-i18n="pool.volumeLabel">Объём бассейна</label>
             <select id="volumeSelect">
-              <option value="10000">10 000 л</option>
-              <option value="25000">25 000 л</option>
-              <option value="50000">50 000 л</option>
-              <option value="75000">75 000 л</option>
-              <option value="custom">Свой объём...</option>
+              <option value="10000" data-i18n="pool.volume10000">10 000 л</option>
+              <option value="25000" data-i18n="pool.volume25000">25 000 л</option>
+              <option value="50000" data-i18n="pool.volume50000">50 000 л</option>
+              <option value="75000" data-i18n="pool.volume75000">75 000 л</option>
+              <option value="custom" data-i18n="pool.volumeCustom">Свой объём...</option>
             </select>
             <div id="customVolumeWrap" class="custom-volume hidden">
-              <input type="number" id="customVolume" min="1000" max="500000" step="100" placeholder="Литры">
+              <input type="number" id="customVolume" min="1000" max="500000" step="100" data-i18n-placeholder="pool.liters" placeholder="Литры">
             </div>
           </div>
           <div class="volume-row">
-            <label for="treatmentSelect">Обработка воды</label>
+            <label for="treatmentSelect" data-i18n="pool.treatmentLabel">Обработка воды</label>
             <select id="treatmentSelect">
-              <option value="chlorine">На хлоре</option>
-              <option value="peroxide">На перекиси</option>
+              <option value="chlorine" data-i18n="treatment.chlorine">На хлоре</option>
+              <option value="peroxide" data-i18n="treatment.peroxide">На перекиси</option>
             </select>
           </div>
           <div class="pool-edit-actions">
-            <button type="button" id="savePoolSettingsBtn" class="btn btn-primary">Сохранить</button>
-            <button type="button" id="cancelPoolEditBtn" class="btn btn-secondary">Отмена</button>
+            <button type="button" id="savePoolSettingsBtn" class="btn btn-primary" data-i18n="pool.save">Сохранить</button>
+            <button type="button" id="cancelPoolEditBtn" class="btn btn-secondary" data-i18n="pool.cancel">Отмена</button>
           </div>
         </div>
         <div class="export-row">
-          <button type="button" id="exportPdfBtn" class="btn btn-secondary">Скачать PDF отчёт</button>
-          <p class="hint export-hint">История измерений и записи о химии / работах по выбранному бассейну.</p>
+          <button type="button" id="exportPdfBtn" class="btn btn-secondary" data-i18n="export.pdf">Скачать PDF отчёт</button>
+          <p class="hint export-hint" data-i18n="export.hint">История измерений и записи о химии / работах по выбранному бассейну.</p>
         </div>
       </section>
 
       <section class="card">
-        <h2>Новое измерение</h2>
+        <h2 data-i18n="measure.new">Новое измерение</h2>
         <form id="measurementForm">
           <div class="form-grid">
             <div class="field">
-              <label for="ph">pH</label>
+              <label for="ph" data-i18n="measure.ph">pH</label>
               <input type="number" id="ph" step="0.1" min="0" max="14" placeholder="7.4" required>
             </div>
             <div class="field">
-              <label for="chlorine" id="chlorineLabel">Свободный хлор (мг/л)</label>
+              <label for="chlorine" id="chlorineLabel" data-i18n="measure.chlorine">Свободный хлор (мг/л)</label>
               <input type="number" id="chlorine" step="0.1" min="0" max="100" placeholder="1.5" required>
             </div>
             <div class="field">
-              <label for="temperature">Температура (°C)</label>
+              <label for="temperature" data-i18n="measure.temperature">Температура (°C)</label>
               <input type="number" id="temperature" step="0.1" min="0" max="50" placeholder="26" required>
             </div>
           </div>
-          <button type="submit" class="btn btn-primary">Сохранить измерение</button>
+          <button type="submit" class="btn btn-primary" data-i18n="measure.save">Сохранить измерение</button>
         </form>
 
-        <button type="button" id="toggleMeasurementHistoryBtn" class="btn btn-secondary btn-full history-toggle-btn">
+        <button type="button" id="toggleMeasurementHistoryBtn" class="btn btn-secondary btn-full history-toggle-btn" data-i18n="measure.historyToggle">
           История и графики
         </button>
 
         <div id="measurementHistoryPanel" class="measurement-history-panel hidden">
-          <h3 class="subsection-title">Графики</h3>
-          <p id="chartsHint" class="hint">Добавьте несколько измерений, чтобы увидеть динамику.</p>
+          <h3 class="subsection-title" data-i18n="measure.charts">Графики</h3>
+          <p id="chartsHint" class="hint" data-i18n="measure.chartsHint">Добавьте несколько измерений, чтобы увидеть динамику.</p>
           <div class="charts">
             <div class="chart-wrap"><canvas id="phChart"></canvas></div>
             <div class="chart-wrap"><canvas id="chlorineChart"></canvas></div>
@@ -229,170 +237,177 @@
           </div>
 
           <div class="history-header">
-            <h3 class="subsection-title">История измерений</h3>
-            <button type="button" id="clearHistoryBtn" class="btn btn-danger btn-small">Очистить историю</button>
+            <h3 class="subsection-title" data-i18n="measure.history">История измерений</h3>
+            <button type="button" id="clearHistoryBtn" class="btn btn-danger btn-small" data-i18n="measure.clearHistory">Очистить историю</button>
           </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Дата</th>
+                  <th data-i18n="export.col.date">Дата</th>
                   <th>pH</th>
-                  <th id="historyChlorineHeader">Хлор</th>
-                  <th>Темп.</th>
-                  <th>Статус</th>
+                  <th id="historyChlorineHeader" data-i18n="measure.chlorineShort">Хлор</th>
+                  <th data-i18n="measure.col.temp">Темп.</th>
+                  <th data-i18n="measure.col.status">Статус</th>
                 </tr>
               </thead>
               <tbody id="historyBody"></tbody>
             </table>
           </div>
-          <p id="emptyHistory" class="empty">Пока нет измерений для этого бассейна.</p>
+          <p id="emptyHistory" class="empty" data-i18n="measure.empty">Пока нет измерений для этого бассейна.</p>
         </div>
       </section>
 
       <section class="card">
-        <h2>Рекомендации по воде</h2>
-        <p class="hint">Советы по pH, хлору и температуре на основе последнего измерения.</p>
+        <h2 data-i18n="rec.title">Рекомендации по воде</h2>
+        <p class="hint" data-i18n="rec.hint">Советы по pH, хлору и температуре на основе последнего измерения.</p>
         <div id="paramRecommendations" class="recommendations"></div>
       </section>
 
       <section class="card">
-        <h2>Добавление химии</h2>
-        <p class="hint">Запишите, какую химию и в каком количестве вы добавили, а также что меняли на бассейне.</p>
+        <h2 data-i18n="chem.title">Добавление химии</h2>
+        <p class="hint" data-i18n="chem.hint">Добавьте одну или несколько позиций химии, при необходимости сделайте фото и сохраните всё одной записью.</p>
         <form id="chemistryForm">
           <div class="form-grid">
             <div class="field">
-              <label for="chemicalName">Химия / препарат</label>
+              <label for="chemicalName" data-i18n="chem.name">Химия / препарат</label>
               <select id="chemicalName">
-                <option value="Хлор (таблетки)">Хлор (таблетки)</option>
-                <option value="Хлор (гранулы)">Хлор (гранулы)</option>
-                <option value="Шоковый хлор">Шоковый хлор</option>
-                <option value="pH-минус">pH-минус</option>
-                <option value="pH-плюс">pH-плюс</option>
-                <option value="pH (регулятор)">pH (регулятор)</option>
-                <option value="Флокулянт">Флокулянт</option>
-                <option value="Стопметал">Стопметал</option>
-                <option value="Перекись водорода">Перекись</option>
-                <option value="Альгицид">Альгицид</option>
-                <option value="Стабилизатор">Стабилизатор (CYA)</option>
-                <option value="Препарат от металлов">Препарат от металлов</option>
-                <option value="custom">Другое...</option>
+                <option value="Хлор (таблетки)" data-i18n="chem.chlorineTablets">Хлор (таблетки)</option>
+                <option value="Хлор (гранулы)" data-i18n="chem.chlorineGranules">Хлор (гранулы)</option>
+                <option value="Шоковый хлор" data-i18n="chem.shockChlorine">Шоковый хлор</option>
+                <option value="pH-минус" data-i18n="chem.phMinus">pH-минус</option>
+                <option value="pH-плюс" data-i18n="chem.phPlus">pH-плюс</option>
+                <option value="pH (регулятор)" data-i18n="chem.phRegulator">pH (регулятор)</option>
+                <option value="Флокулянт" data-i18n="chem.flocculant">Флокулянт</option>
+                <option value="Стопметал" data-i18n="chem.stopMetal">Стопметал</option>
+                <option value="Перекись водорода" data-i18n="chem.peroxide">Перекись</option>
+                <option value="Альгицид" data-i18n="chem.algaecide">Альгицид</option>
+                <option value="Стабилизатор" data-i18n="chem.stabilizer">Стабилизатор (CYA)</option>
+                <option value="Препарат от металлов" data-i18n="chem.metalRemover">Препарат от металлов</option>
+                <option value="custom" data-i18n="chem.custom">Другое...</option>
               </select>
             </div>
             <div class="field hidden" id="customChemicalWrap">
-              <label for="customChemical">Название</label>
-              <input type="text" id="customChemical" maxlength="80" placeholder="Введите название">
+              <label for="customChemical" data-i18n="chem.customName">Название</label>
+              <input type="text" id="customChemical" maxlength="80" data-i18n-placeholder="chem.customPlaceholder" placeholder="Введите название">
             </div>
             <div class="field">
-              <label for="chemicalAmount">Количество</label>
-              <input type="number" id="chemicalAmount" step="0.1" min="0" placeholder="500" required>
+              <label for="chemicalAmount" data-i18n="chem.amount">Количество</label>
+              <input type="number" id="chemicalAmount" step="0.1" min="0" placeholder="500">
             </div>
             <div class="field">
-              <label for="chemicalUnit">Единица</label>
+              <label for="chemicalUnit" data-i18n="chem.unit">Единица</label>
               <select id="chemicalUnit">
-                <option value="г">г</option>
-                <option value="кг">кг</option>
-                <option value="мл">мл</option>
-                <option value="л">л</option>
-                <option value="таб.">таблеток</option>
-                <option value="мг">мг</option>
+                <option value="г" data-i18n="unit.g">г</option>
+                <option value="кг" data-i18n="unit.kg">кг</option>
+                <option value="мл" data-i18n="unit.ml">мл</option>
+                <option value="л" data-i18n="unit.l">л</option>
+                <option value="таб." data-i18n="unit.tabs">таблеток</option>
+                <option value="мг" data-i18n="unit.mg">мг</option>
               </select>
             </div>
           </div>
-          <div class="field">
-            <label for="chemicalComment">Комментарий (что заменено / сделано)</label>
-            <textarea id="chemicalComment" rows="2" maxlength="500" placeholder="Например: заменён песок в фильтре, промыта сетка skimmer"></textarea>
+          <button type="button" id="addChemistryItemBtn" class="btn btn-secondary btn-full chemistry-add-item-btn" data-i18n="chem.addItem">+ Добавить химию</button>
+          <div id="chemistryBatchWrap" class="chemistry-batch-wrap hidden">
+            <p class="chemistry-batch-title" data-i18n="chem.batchTitle">В этой записи:</p>
+            <ul id="chemistryBatchItems" class="chemistry-batch-items"></ul>
           </div>
-          <div class="form-actions-row">
-            <button type="submit" class="btn btn-primary">Сохранить запись</button>
-            <input type="file" id="chemistryPhotoGalleryInput" accept="image/*" hidden>
-            <input type="file" id="chemistryPhotoCameraInput" accept="image/*" capture="environment" hidden>
-            <button type="button" id="chemistryPhotoBtn" class="btn btn-secondary chemistry-photo-btn" title="Добавить фото бассейна" aria-label="Добавить фото бассейна">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                <circle cx="12" cy="13" r="4"/>
-              </svg>
-              <span>Фото</span>
-            </button>
+          <div class="field">
+            <label for="chemicalComment" data-i18n="chem.comment">Комментарий (что заменено / сделано)</label>
+            <textarea id="chemicalComment" rows="2" maxlength="500" data-i18n-placeholder="chem.commentPlaceholder" placeholder="Например: заменён песок в фильтре, промыта сетка skimmer"></textarea>
+          </div>
+          <div class="chemistry-save-section">
+            <p class="chemistry-save-label" data-i18n="chem.saveSection">Сохранение записи</p>
+            <div class="form-actions-row">
+              <button type="submit" id="saveChemistryBtn" class="btn btn-primary" data-i18n="chem.save">Сохранить запись</button>
+              <input type="file" id="chemistryPhotoGalleryInput" accept="image/*" hidden>
+              <input type="file" id="chemistryPhotoCameraInput" accept="image/*" capture="environment" hidden>
+              <button type="button" id="chemistryPhotoBtn" class="btn btn-secondary chemistry-photo-btn" data-i18n-title="chem.photoBtn" data-i18n-aria-label="chem.photoBtn" title="Добавить фото бассейна" aria-label="Добавить фото бассейна">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+                <span data-i18n="chem.photo">Фото</span>
+              </button>
+            </div>
           </div>
           <div id="chemistryPhotoPreview" class="chemistry-photo-preview hidden">
-            <img id="chemistryPhotoPreviewImg" alt="Выбранное фото бассейна">
+            <img id="chemistryPhotoPreviewImg" data-i18n-alt="chem.photoAlt" alt="Выбранное фото бассейна">
             <div class="chemistry-photo-preview-meta">
-              <p id="chemistryPhotoPreviewLabel" class="chemistry-photo-preview-label">Фото готово — нажмите «Сохранить запись»</p>
-              <button type="button" id="chemistryPhotoRemoveBtn" class="btn btn-danger btn-small">Убрать</button>
+              <p id="chemistryPhotoPreviewLabel" class="chemistry-photo-preview-label" data-i18n="chem.photoReady">Фото готово — нажмите «Сохранить запись»</p>
+              <button type="button" id="chemistryPhotoRemoveBtn" class="btn btn-danger btn-small" data-i18n="chem.remove">Убрать</button>
             </div>
           </div>
         </form>
 
-        <button type="button" id="toggleChemistryHistoryBtn" class="btn btn-secondary btn-full history-toggle-btn">
+        <button type="button" id="toggleChemistryHistoryBtn" class="btn btn-secondary btn-full history-toggle-btn" data-i18n="chem.historyToggle">
           История добавленной химии
         </button>
 
         <div id="chemistryHistoryPanel" class="chemistry-history-panel hidden">
           <div class="history-header">
-            <h3 class="subsection-title">Что добавляли</h3>
-            <button type="button" id="clearChemistryBtn" class="btn btn-danger btn-small">Очистить</button>
+            <h3 class="subsection-title" data-i18n="chem.historyTitle">Что добавляли</h3>
+            <button type="button" id="clearChemistryBtn" class="btn btn-danger btn-small" data-i18n="chem.clear">Очистить</button>
           </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Дата</th>
-                  <th>Химия</th>
-                  <th>Кол-во</th>
-                  <th>Комментарий</th>
-                  <th>Фото</th>
+                  <th data-i18n="export.col.date">Дата</th>
+                  <th data-i18n="chem.col.added">Что добавили</th>
+                  <th data-i18n="chem.col.comment">Комментарий</th>
+                  <th data-i18n="chem.col.photo">Фото</th>
                 </tr>
               </thead>
               <tbody id="chemistryBody"></tbody>
             </table>
           </div>
-          <p id="emptyChemistry" class="empty">Пока нет записей о химии для этого бассейна.</p>
+          <p id="emptyChemistry" class="empty" data-i18n="chem.empty">Пока нет записей о добавлении химии.</p>
         </div>
       </section>
 
       <section class="card telegram-reminders" id="telegramRemindersCard">
-        <h2>Напоминания в Telegram</h2>
-        <p class="hint telegram-section-hint">Напоминания об измерениях и добавлении химии — в мессенджер.</p>
-        <button type="button" id="toggleTelegramBtn" class="btn btn-secondary btn-full telegram-toggle-btn" aria-expanded="false">
+        <h2 data-i18n="telegram.title">Напоминания в Telegram</h2>
+        <p class="hint telegram-section-hint" data-i18n="telegram.hint">Напоминания об измерениях и добавлении химии — в мессенджер.</p>
+        <button type="button" id="toggleTelegramBtn" class="btn btn-secondary btn-full telegram-toggle-btn" aria-expanded="false" data-i18n="telegram.toggle">
           Настроить напоминания
         </button>
         <div id="telegramDetailsPanel" class="telegram-details-panel hidden">
-          <p class="hint telegram-intro-hint">Подключите Telegram один раз. Ниже настройте напоминания для бассейна <strong id="poolReminderPoolName">—</strong>.</p>
-          <p id="telegramBotMissing" class="message warn hidden">Telegram-бот ещё не настроен. См. TELEGRAM_SETUP.md</p>
+          <p id="telegramIntroHint" class="hint telegram-intro-hint"></p>
+          <p id="telegramBotMissing" class="message warn hidden" data-i18n="telegram.botMissing">Telegram-бот ещё не настроен. См. TELEGRAM_SETUP.md</p>
           <div id="telegramPanel" class="telegram-panel hidden">
             <p id="telegramConnectionStatus" class="telegram-status"></p>
             <div class="telegram-actions">
-              <button type="button" id="connectTelegramBtn" class="btn btn-primary">Подключить Telegram</button>
-              <button type="button" id="checkTelegramBtn" class="btn btn-secondary hidden">Проверить подключение</button>
-              <button type="button" id="disconnectTelegramBtn" class="btn btn-danger btn-small hidden">Отключить</button>
+              <button type="button" id="connectTelegramBtn" class="btn btn-primary" data-i18n="telegram.connect">Подключить Telegram</button>
+              <button type="button" id="checkTelegramBtn" class="btn btn-secondary hidden" data-i18n="telegram.check">Проверить подключение</button>
+              <button type="button" id="disconnectTelegramBtn" class="btn btn-danger btn-small hidden" data-i18n="telegram.disconnect">Отключить</button>
             </div>
             <form id="telegramSettingsForm" class="telegram-settings hidden">
               <div class="field">
-                <label for="reminderHour">Время сообщений</label>
+                <label for="reminderHour" data-i18n="telegram.messageTime">Время сообщений</label>
                 <select id="reminderHour"></select>
               </div>
-              <button type="submit" class="btn btn-primary">Сохранить время</button>
+              <button type="submit" class="btn btn-primary" data-i18n="telegram.saveTime">Сохранить время</button>
             </form>
-            <p id="telegramSettingsLocked" class="hint telegram-settings-locked">После подключения здесь можно выбрать время сообщений.</p>
+            <p id="telegramSettingsLocked" class="hint telegram-settings-locked" data-i18n="telegram.lockedHint">После подключения здесь можно выбрать время сообщений.</p>
             <div id="poolReminderSection" class="pool-reminder-block hidden">
-              <h3 class="subsection-title">Напоминания для этого бассейна</h3>
+              <h3 class="subsection-title" data-i18n="telegram.poolReminders">Напоминания для этого бассейна</h3>
               <label class="telegram-toggle pool-reminder-toggle">
                 <input type="checkbox" id="poolRemindersEnabled">
-                <span>Напоминать, если нет измерений и записей о химии</span>
+                <span data-i18n="telegram.remindIfInactive">Напоминать, если нет измерений и записей о химии</span>
               </label>
               <div id="poolReminderOptions" class="pool-reminder-options">
                 <div class="field">
-                  <label for="poolReminderInterval">Интервал</label>
+                  <label for="poolReminderInterval" data-i18n="telegram.interval">Интервал</label>
                   <select id="poolReminderInterval">
-                    <option value="3">3 дня</option>
-                    <option value="5">5 дней</option>
-                    <option value="7" selected>7 дней</option>
-                    <option value="14">14 дней</option>
-                    <option value="30">30 дней</option>
+                    <option value="3" data-i18n="telegram.days3">3 дня</option>
+                    <option value="5" data-i18n="telegram.days5">5 дней</option>
+                    <option value="7" selected data-i18n="telegram.days7">7 дней</option>
+                    <option value="14" data-i18n="telegram.days14">14 дней</option>
+                    <option value="30" data-i18n="telegram.days30">30 дней</option>
                   </select>
                 </div>
-                <button type="button" id="savePoolRemindersBtn" class="btn btn-primary">Сохранить напоминания</button>
+                <button type="button" id="savePoolRemindersBtn" class="btn btn-primary" data-i18n="telegram.saveReminders">Сохранить напоминания</button>
               </div>
               <p id="poolReminderMessage" class="message" hidden></p>
             </div>
@@ -402,30 +417,30 @@
       </section>
 
       <section class="card problems-entry-card">
-        <h2>Проблемы с водой</h2>
-        <p class="hint">Если вода мутная, зелёная или есть другие симптомы — откройте раздел с рекомендациями.</p>
-        <a href="problems.html" class="btn btn-danger btn-full btn-problem">Проблема</a>
+        <h2 data-i18n="problems.title">Проблемы с водой</h2>
+        <p class="hint" data-i18n="problems.hint">Если вода мутная, зелёная или есть другие симптомы — откройте раздел с рекомендациями.</p>
+        <a href="problems.html" class="btn btn-danger btn-full btn-problem" data-i18n="problems.btn">Проблема</a>
       </section>
     </div>
 
-    <p id="noPoolHint" class="no-pool hidden">Выберите бассейн из списка или добавьте новый.</p>
+    <p id="noPoolHint" class="no-pool hidden" data-i18n="pool.noHint">Выберите бассейн из списка или добавьте новый.</p>
   </div>
 
   <div id="cameraCaptureModal" class="modal hidden" role="dialog" aria-labelledby="cameraCaptureTitle" aria-modal="true">
     <div class="modal-backdrop" data-close-camera></div>
     <div class="modal-content modal-content-wide">
-      <button type="button" class="modal-close" data-close-camera aria-label="Закрыть">&times;</button>
-      <h2 id="cameraCaptureTitle">Сделать фото</h2>
-      <p class="hint camera-capture-hint">Наведите камеру на бассейн и нажмите «Снять»</p>
+      <button type="button" class="modal-close" data-close-camera data-i18n-aria-label="modal.close" aria-label="Закрыть">&times;</button>
+      <h2 id="cameraCaptureTitle" data-i18n="camera.title">Сделать фото</h2>
+      <p class="hint camera-capture-hint" data-i18n="camera.hint">Наведите камеру на бассейн и нажмите «Снять»</p>
       <div class="camera-preview-wrap">
         <video id="cameraPreview" autoplay playsinline muted></video>
         <canvas id="cameraCanvas" hidden></canvas>
         <p id="cameraError" class="message error hidden"></p>
       </div>
       <div class="modal-actions camera-actions">
-        <button type="button" id="capturePhotoBtn" class="btn btn-primary btn-full">Снять</button>
-        <button type="button" id="cameraFallbackBtn" class="btn btn-secondary btn-full hidden">Выбрать из файлов</button>
-        <button type="button" class="btn btn-secondary btn-full" data-close-camera>Отмена</button>
+        <button type="button" id="capturePhotoBtn" class="btn btn-primary btn-full" data-i18n="camera.capture">Снять</button>
+        <button type="button" id="cameraFallbackBtn" class="btn btn-secondary btn-full hidden" data-i18n="camera.fallback">Выбрать из файлов</button>
+        <button type="button" class="btn btn-secondary btn-full" data-close-camera data-i18n="modal.cancel">Отмена</button>
       </div>
     </div>
   </div>
@@ -433,12 +448,12 @@
   <div id="photoSourceModal" class="modal hidden" role="dialog" aria-labelledby="photoSourceModalTitle" aria-modal="true">
     <div class="modal-backdrop" data-close-photo-source></div>
     <div class="modal-content">
-      <button type="button" class="modal-close" data-close-photo-source aria-label="Закрыть">&times;</button>
-      <h2 id="photoSourceModalTitle">Добавить фото</h2>
-      <p class="hint photo-source-hint">Выберите, откуда добавить фото бассейна</p>
+      <button type="button" class="modal-close" data-close-photo-source data-i18n-aria-label="modal.close" aria-label="Закрыть">&times;</button>
+      <h2 id="photoSourceModalTitle" data-i18n="photo.title">Добавить фото</h2>
+      <p class="hint photo-source-hint" data-i18n="photo.hint">Выберите, откуда добавить фото бассейна</p>
       <div class="modal-actions photo-source-actions">
-        <button type="button" id="photoFromGalleryBtn" class="btn btn-secondary btn-full">Из галереи</button>
-        <button type="button" id="photoFromCameraBtn" class="btn btn-primary btn-full">С камеры</button>
+        <button type="button" id="photoFromGalleryBtn" class="btn btn-secondary btn-full" data-i18n="photo.gallery">Из галереи</button>
+        <button type="button" id="photoFromCameraBtn" class="btn btn-primary btn-full" data-i18n="photo.camera">С камеры</button>
       </div>
     </div>
   </div>
@@ -446,37 +461,37 @@
   <div id="addPoolModal" class="modal hidden" role="dialog" aria-labelledby="modalTitle" aria-modal="true">
     <div class="modal-backdrop" data-close-pool-modal></div>
     <div class="modal-content">
-      <button type="button" class="modal-close" data-close-pool-modal aria-label="Закрыть">&times;</button>
-      <h2 id="modalTitle">Новый бассейн</h2>
+      <button type="button" class="modal-close" data-close-pool-modal data-i18n-aria-label="modal.close" aria-label="Закрыть">&times;</button>
+      <h2 id="modalTitle" data-i18n="pool.newTitle">Новый бассейн</h2>
       <form id="addPoolForm">
         <div class="field">
-          <label for="newPoolName">Название</label>
-          <input type="text" id="newPoolName" placeholder="Например: Дача" required maxlength="50">
+          <label for="newPoolName" data-i18n="pool.name">Название</label>
+          <input type="text" id="newPoolName" data-i18n-placeholder="pool.namePlaceholder" placeholder="Например: Дача" required maxlength="50">
         </div>
         <div class="field">
-          <label for="newPoolVolume">Объём</label>
+          <label for="newPoolVolume" data-i18n="pool.volumeLabel">Объём</label>
           <select id="newPoolVolume">
-            <option value="10000">10 000 л</option>
-            <option value="25000">25 000 л</option>
-            <option value="50000">50 000 л</option>
-            <option value="75000">75 000 л</option>
-            <option value="custom">Свой объём...</option>
+            <option value="10000" data-i18n="pool.volume10000">10 000 л</option>
+            <option value="25000" data-i18n="pool.volume25000">25 000 л</option>
+            <option value="50000" data-i18n="pool.volume50000">50 000 л</option>
+            <option value="75000" data-i18n="pool.volume75000">75 000 л</option>
+            <option value="custom" data-i18n="pool.volumeCustom">Свой объём...</option>
           </select>
         </div>
         <div id="newCustomVolumeWrap" class="custom-volume hidden">
-          <input type="number" id="newCustomVolume" min="1000" max="500000" step="100" placeholder="Литры">
+          <input type="number" id="newCustomVolume" min="1000" max="500000" step="100" data-i18n-placeholder="pool.liters" placeholder="Литры">
         </div>
         <div class="field">
-          <label for="newPoolTreatment">Обработка воды</label>
+          <label for="newPoolTreatment" data-i18n="pool.treatmentLabel">Обработка воды</label>
           <select id="newPoolTreatment">
-            <option value="chlorine">На хлоре</option>
-            <option value="peroxide">На перекиси</option>
+            <option value="chlorine" data-i18n="treatment.chlorine">На хлоре</option>
+            <option value="peroxide" data-i18n="treatment.peroxide">На перекиси</option>
           </select>
         </div>
         <p id="modalError" class="message error" hidden></p>
         <div class="modal-actions">
-          <button type="submit" class="btn btn-primary">Добавить</button>
-          <button type="button" class="btn btn-secondary" data-close-pool-modal>Отмена</button>
+          <button type="submit" class="btn btn-primary" data-i18n="pool.addBtn">Добавить</button>
+          <button type="button" class="btn btn-secondary" data-close-pool-modal data-i18n="modal.cancel">Отмена</button>
         </div>
       </form>
     </div>
@@ -484,11 +499,16 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="config.js?v=2"></script>
-  <script src="supabase-db.js?v=12"></script>
+  <script src="i18n/ru.js?v=1"></script>
+  <script src="i18n/en.js?v=1"></script>
+  <script src="i18n/pool-problems-ru.js?v=1"></script>
+  <script src="i18n/pool-problems-en.js?v=1"></script>
+  <script src="i18n/i18n.js?v=1"></script>
+  <script src="supabase-db.js?v=13"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.min.js"></script>
-  <script src="app.js?v=29"></script>
+  <script src="app.js?v=32"></script>
 </body>
 </html>

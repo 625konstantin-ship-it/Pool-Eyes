@@ -1,14 +1,23 @@
-const NORMS = {
-  ph: { min: 7.2, max: 7.6, ideal: '7.2–7.6' },
-  chlorine: { min: 1.0, max: 3.0, ideal: '1.0–3.0 мг/л' },
-  peroxide: { min: 30, max: 75, ideal: '30–75 мг/л' },
-  temperature: { min: 24, max: 28, ideal: '24–28 °C' }
-};
+function getNorms() {
+  return {
+    ph: { min: 7.2, max: 7.6, ideal: t('norm.phIdeal') },
+    chlorine: { min: 1.0, max: 3.0, ideal: t('norm.chlorineIdeal') },
+    peroxide: { min: 30, max: 75, ideal: t('norm.peroxideIdeal') },
+    temperature: { min: 24, max: 28, ideal: t('norm.tempIdeal') }
+  };
+}
 
-const TREATMENT_LABELS = {
-  chlorine: 'На хлоре',
-  peroxide: 'На перекиси'
-};
+function treatmentLabel(type) {
+  return type === 'peroxide' ? t('treatment.peroxide') : t('treatment.chlorine');
+}
+
+function getNominatimLang() {
+  return getLang() === 'en' ? 'en' : 'ru';
+}
+
+function getNominatimHeaders() {
+  return { 'Accept-Language': getNominatimLang(), 'User-Agent': 'PoolTracker/1.0 (local pool app)' };
+}
 
 let currentUser = null;
 let poolList = [];
@@ -19,6 +28,7 @@ let poolPhotos = [];
 let pendingChemistryPhoto = null;
 let pendingChemistryPhotoUrl = null;
 let savedChemistryPhotoUrl = null;
+let pendingChemistryBatch = [];
 let cameraStream = null;
 let selectedProblems = {};
 let charts = { ph: null, chlorine: null, temp: null };
@@ -40,7 +50,6 @@ const MAP_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const MAP_TILE_FALLBACK_URL = 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png';
 const LEAFLET_ICON_BASE = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/';
 const DEFAULT_MAP_CENTER = [50.4501, 30.5234];
-const NOMINATIM_HEADERS = { 'Accept-Language': 'ru', 'User-Agent': 'PoolTracker/1.0 (local pool app)' };
 
 function storageGet(key) {
   try { return localStorage.getItem(key); }
@@ -118,7 +127,7 @@ function showAuthScreen() {
 
 async function handleDbError(err, context) {
   console.error(context, err);
-  alert('Ошибка сохранения: ' + (err.message || context));
+  alert(t('error.save', { message: err.message || context }));
 }
 function normalizeLocation(loc) {
   if (!loc || typeof loc !== 'object') {
@@ -201,7 +210,7 @@ async function handleChangePassword() {
   closeUserMenu();
   if (!currentUser?.email) return;
 
-  if (!confirm(`Отправить ссылку для смены пароля на ${currentUser.email}?`)) return;
+  if (!confirm(t('auth.changePasswordConfirm', { email: currentUser.email }))) return;
 
   try {
     const result = await authResetPassword(currentUser.email);
@@ -211,15 +220,15 @@ async function handleChangePassword() {
     }
     alert(result.message);
   } catch (err) {
-    alert(translateAuthError(err.message || 'Ошибка отправки'));
+    alert(translateAuthError(err.message || t('auth.error.send')));
   }
 }
 
 function resetAuthCardHeader() {
   const title = document.querySelector('.auth-card h1');
   const subtitle = document.querySelector('.auth-card .subtitle');
-  if (title) title.textContent = 'Учёт параметров бассейна';
-  if (subtitle) subtitle.textContent = 'Войдите или создайте учётную запись';
+  if (title) title.textContent = t('app.title');
+  if (subtitle) subtitle.textContent = t('auth.subtitle');
 }
 
 function showPasswordResetScreen() {
@@ -232,8 +241,8 @@ function showPasswordResetScreen() {
 
   const title = document.querySelector('.auth-card h1');
   const subtitle = document.querySelector('.auth-card .subtitle');
-  if (title) title.textContent = 'Новый пароль';
-  if (subtitle) subtitle.textContent = 'Задайте новый пароль для входа';
+  if (title) title.textContent = t('auth.newPasswordTitle');
+  if (subtitle) subtitle.textContent = t('auth.newPasswordSubtitle');
 
   hideAuthMessages(['newPasswordError', 'newPasswordSuccess']);
   showAuthScreen();
@@ -248,11 +257,11 @@ async function handleUpdatePassword(e) {
   const confirm = document.getElementById('newPasswordConfirm').value;
 
   if (password !== confirm) {
-    showAuthMessage('newPasswordError', 'Пароли не совпадают.');
+    showAuthMessage('newPasswordError', t('auth.passwordMismatch'));
     return;
   }
 
-  setFormLoading(form, true, 'Сохранение...');
+  setFormLoading(form, true, t('auth.saving'));
   try {
     const result = await authUpdatePassword(password);
     if (!result.ok) {
@@ -271,17 +280,17 @@ async function handleUpdatePassword(e) {
       resetAuthCardHeader();
       form.reset();
       await startApp();
-      showMessage(document.getElementById('selectorMessage'), 'Пароль успешно изменён!');
+      showMessage(document.getElementById('selectorMessage'), t('auth.passwordChanged'));
       return;
     }
 
-    showAuthMessage('newPasswordSuccess', 'Пароль сохранён! Теперь вой с новым паролем.', 'success');
+    showAuthMessage('newPasswordSuccess', t('auth.passwordSavedLogin'), 'success');
     document.getElementById('newPasswordForm')?.classList.add('hidden');
     document.querySelector('.auth-tabs')?.classList.remove('hidden');
     resetAuthCardHeader();
     switchAuthTab('login');
   } catch (err) {
-    showAuthMessage('newPasswordError', translateAuthError(err.message || 'Ошибка сохранения'));
+    showAuthMessage('newPasswordError', translateAuthError(err.message || t('auth.error.save')));
   } finally {
     setFormLoading(form, false);
   }
@@ -337,12 +346,13 @@ function showAuthMessage(id, text, type = 'error') {
   el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function setFormLoading(form, loading, loadingText = 'Подождите...') {
+function setFormLoading(form, loading, loadingText = null) {
   const btn = form?.querySelector('button[type="submit"]');
   if (!btn) return;
+  const waitText = loadingText || t('auth.loading');
   if (loading) {
     if (!btn.dataset.originalText) btn.dataset.originalText = btn.textContent;
-    btn.textContent = loadingText;
+    btn.textContent = waitText;
     btn.disabled = true;
   } else {
     btn.textContent = btn.dataset.originalText || btn.textContent;
@@ -357,7 +367,7 @@ async function handleLogin(e) {
   const email = document.getElementById('loginEmail').value;
   const password = document.getElementById('loginPassword').value;
 
-  setFormLoading(form, true, 'Вход...');
+  setFormLoading(form, true, t('auth.loggingIn'));
   try {
     const result = await authSignIn(email, password);
     if (!result.ok) {
@@ -367,7 +377,7 @@ async function handleLogin(e) {
     currentUser = result.user;
     await startApp();
   } catch (err) {
-    showAuthMessage('loginError', translateAuthError(err.message || 'Ошибка входа'));
+    showAuthMessage('loginError', translateAuthError(err.message || t('auth.error.login')));
   } finally {
     setFormLoading(form, false);
   }
@@ -384,16 +394,16 @@ async function handleRegister(e) {
   const confirm = document.getElementById('registerPasswordConfirm').value;
 
   if (!email.includes('@') || !email.includes('.')) {
-    showAuthMessage('registerError', 'Введите корректный email, например name@gmail.com');
+    showAuthMessage('registerError', t('auth.invalidEmailFormat'));
     return;
   }
 
   if (password !== confirm) {
-    showAuthMessage('registerError', 'Пароли не совпадают.');
+    showAuthMessage('registerError', t('auth.passwordMismatch'));
     return;
   }
 
-  setFormLoading(form, true, 'Регистрация...');
+  setFormLoading(form, true, t('auth.registering'));
   try {
     const result = await authSignUp(email, password, displayName);
     if (!result.ok) {
@@ -404,7 +414,7 @@ async function handleRegister(e) {
     if (result.needsConfirmation) {
       showAuthMessage(
         'registerSuccess',
-        '✅ Аккаунт создан! Откройте почту (и папку «Спам»), перейдите по ссылке из письма, затем вой вой «Вход».',
+        t('auth.registerSuccess'),
         'success'
       );
       return;
@@ -413,7 +423,7 @@ async function handleRegister(e) {
     currentUser = result.user;
     await startApp();
   } catch (err) {
-    showAuthMessage('registerError', translateAuthError(err.message || 'Ошибка регистрации'));
+    showAuthMessage('registerError', translateAuthError(err.message || t('auth.error.register')));
   } finally {
     setFormLoading(form, false);
   }
@@ -426,7 +436,7 @@ async function handleForgot(e) {
   const form = e.target;
   const email = document.getElementById('forgotEmail').value.trim();
 
-  setFormLoading(form, true, 'Отправка...');
+  setFormLoading(form, true, t('auth.sending'));
   try {
     const result = await authResetPassword(email);
     if (!result.ok) {
@@ -435,7 +445,7 @@ async function handleForgot(e) {
     }
     showAuthMessage('forgotSuccess', result.message, 'success');
   } catch (err) {
-    showAuthMessage('forgotError', translateAuthError(err.message || 'Ошибка отправки'));
+    showAuthMessage('forgotError', translateAuthError(err.message || t('auth.error.send')));
   } finally {
     setFormLoading(form, false);
   }
@@ -483,7 +493,7 @@ function setMeasurementHistoryOpen(open) {
   if (!panel || !btn) return;
 
   panel.classList.toggle('hidden', !open);
-  btn.textContent = open ? 'Скрыть историю и графики' : 'История и графики';
+  btn.textContent = open ? t('measure.historyHide') : t('measure.historyToggle');
   btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 
   if (open) {
@@ -511,7 +521,7 @@ function setChemistryHistoryOpen(open) {
   if (!panel || !btn) return;
 
   panel.classList.toggle('hidden', !open);
-  btn.textContent = open ? 'Скрыть историю химии' : 'История добавленной химии';
+  btn.textContent = open ? t('chem.historyHide') : t('chem.historyToggle');
   btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
@@ -546,6 +556,7 @@ async function setActivePool(poolId) {
   setPoolEditMode(false);
   clearPendingChemistryPhoto();
   clearSavedChemistryPhotoPreview();
+  clearChemistryBatch();
 
   const select = document.getElementById('poolSelect');
   if (select && select.value !== pool.id) {
@@ -571,20 +582,21 @@ function getPoolChemistry(poolId) {
 }
 
 function formatVolume(liters) {
-  return Number(liters).toLocaleString('ru-RU') + ' л';
+  const formatted = Number(liters).toLocaleString(getLocale());
+  return getLang() === 'en' ? `${formatted} L` : `${formatted} л`;
 }
 
 function formatReportDateTime(iso) {
-  return new Date(iso).toLocaleString('ru-RU', {
+  return new Date(iso).toLocaleString(getLocale(), {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit'
   });
 }
 
 function statusLabelForReport(status) {
-  if (status === 'ok') return 'Норма';
-  if (status === 'warn') return 'Внимание';
-  return 'Критично';
+  if (status === 'ok') return t('status.ok');
+  if (status === 'warn') return t('status.warn');
+  return t('status.crit');
 }
 
 function sanitizePdfFilename(name) {
@@ -597,12 +609,12 @@ function sanitizePdfFilename(name) {
 function handleExportPdf() {
   const pool = getActivePool();
   if (!pool) {
-    alert('Выберите бассейн.');
+    alert(t('export.selectPool'));
     return;
   }
 
   if (typeof pdfMake === 'undefined') {
-    alert('Библиотека PDF не загрузилась. Обновите страницу.');
+    alert(t('export.noLibrary'));
     return;
   }
 
@@ -611,41 +623,41 @@ function handleExportPdf() {
   const treatmentType = getPoolTreatment(pool);
 
   if (poolMeas.length === 0 && poolChem.length === 0) {
-    alert('Нет данных для выгрузки. Добавьте измерения или записи о химии.');
+    alert(t('export.noData'));
     return;
   }
 
   const sanitizerCol = getSanitizerLabel(treatmentType, true);
   const generatedAt = formatReportDateTime(new Date().toISOString());
   const poolInfo = [
-    `Объём: ${formatVolume(pool.volume)}`,
-    TREATMENT_LABELS[treatmentType],
-    `Измерений: ${poolMeas.length}`,
-    `Записей химии: ${poolChem.length}`
+    t('pool.meta.volume', { volume: formatVolume(pool.volume) }),
+    treatmentLabel(treatmentType),
+    t('pool.meta.measurements', { count: poolMeas.length }),
+    t('pool.meta.chemistry', { count: poolChem.length })
   ];
-  if (pool.location?.address) poolInfo.push(`Адрес: ${pool.location.address}`);
+  if (pool.location?.address) poolInfo.push(t('export.address', { address: pool.location.address }));
 
   const content = [
-    { text: 'Отчёт по бассейну', style: 'title' },
+    { text: t('export.title'), style: 'title' },
     { text: pool.name, style: 'subtitle' },
     {
-      text: `Дата формирования: ${generatedAt}${currentUser?.email ? `\nАккаунт: ${currentUser.email}` : ''}`,
+      text: `${t('export.generatedAt', { date: generatedAt })}${currentUser?.email ? `\n${t('export.account', { email: currentUser.email })}` : ''}`,
       style: 'meta',
       margin: [0, 0, 0, 8]
     },
     { ul: poolInfo, style: 'meta', margin: [0, 0, 0, 18] },
-    { text: 'История измерений', style: 'section' }
+    { text: t('export.measurementsTitle'), style: 'section' }
   ];
 
   if (poolMeas.length === 0) {
-    content.push({ text: 'Нет записей.', style: 'empty', margin: [0, 0, 0, 16] });
+    content.push({ text: t('export.noRecords'), style: 'empty', margin: [0, 0, 0, 16] });
   } else {
     content.push({
       table: {
         headerRows: 1,
         widths: ['*', 'auto', 'auto', 'auto', 'auto'],
         body: [
-          ['Дата', 'pH', sanitizerCol, 'Темп., °C', 'Статус'],
+          [t('export.col.date'), 'pH', sanitizerCol, t('export.col.temp'), t('export.col.status')],
           ...poolMeas.map(m => {
             const status = getOverallStatus(m.ph, m.chlorine, m.temperature, treatmentType);
             return [
@@ -671,22 +683,22 @@ function handleExportPdf() {
     });
   }
 
-  content.push({ text: 'История химии и работ', style: 'section' });
+  content.push({ text: t('export.chemistryTitle'), style: 'section' });
 
   if (poolChem.length === 0) {
-    content.push({ text: 'Нет записей.', style: 'empty' });
+    content.push({ text: t('export.noRecords'), style: 'empty' });
   } else {
+    const chemGroups = groupChemistryBySession(poolChem);
     content.push({
       table: {
         headerRows: 1,
-        widths: ['*', '*', 'auto', '*'],
+        widths: ['*', '*', '*'],
         body: [
-          ['Дата', 'Химия / препарат', 'Кол-во', 'Комментарий (работы)'],
-          ...poolChem.map(c => [
-            formatReportDateTime(c.date),
-            c.chemical,
-            `${c.amount} ${c.unit}`,
-            c.comment || '—'
+          [t('export.col.date'), t('export.col.added'), t('export.col.comment')],
+          ...chemGroups.map(group => [
+            formatReportDateTime(group.date),
+            formatChemistryGroupForReport(group.items),
+            group.comment || '—'
           ])
         ]
       },
@@ -719,7 +731,7 @@ function handleExportPdf() {
     defaultStyle: { font: 'Roboto', fontSize: 9 }
   }).download(filename);
 
-  showMessage(document.getElementById('selectorMessage'), 'PDF отчёт скачивается…');
+  showMessage(document.getElementById('selectorMessage'), t('export.downloading'));
 }
 
 function isTelegramBotConfigured() {
@@ -745,7 +757,7 @@ function updateTelegramToggleButton() {
   if (!btn) return;
 
   if (telegramPanelOpen) {
-    btn.textContent = 'Скрыть настройки напоминаний';
+    btn.textContent = t('telegram.toggleHide');
     btn.setAttribute('aria-expanded', 'true');
     return;
   }
@@ -754,11 +766,14 @@ function updateTelegramToggleButton() {
   const enabledPools = poolList.filter(p => p.remindersEnabled).length;
   if (telegramSettings?.telegramChatId && enabledPools > 0) {
     const h = String(telegramSettings.reminderHour).padStart(2, '0');
-    btn.textContent = `Напоминания • ${enabledPools} басс. • ${h}:00`;
+    btn.textContent = t('telegram.toggleActive', {
+      count: enabledPools,
+      time: `${h}:00`
+    });
   } else if (telegramSettings?.telegramChatId) {
-    btn.textContent = 'Напоминания • Telegram подключён';
+    btn.textContent = t('telegram.connected');
   } else {
-    btn.textContent = 'Настроить напоминания';
+    btn.textContent = t('telegram.toggle');
   }
 }
 
@@ -799,8 +814,8 @@ function renderTelegramRemindersUI() {
 
   if (statusEl) {
     statusEl.textContent = connected
-      ? 'Telegram подключён'
-      : 'Telegram не подключён — нажмите кнопку ниже и откройте бота.';
+      ? t('telegram.statusConnected')
+      : t('telegram.statusDisconnected');
     statusEl.className = connected ? 'telegram-status connected' : 'telegram-status';
   }
 
@@ -829,7 +844,7 @@ async function loadTelegramSettings() {
     renderTelegramRemindersUI();
   } catch (err) {
     console.error('telegram settings', err);
-    showTelegramMessage('Не удалось загрузить настройки Telegram. Выполните supabase/telegram.sql', 'error');
+    showTelegramMessage(t('telegram.loadFailed'), 'error');
   }
 }
 
@@ -841,10 +856,10 @@ async function handleConnectTelegram() {
     telegramConnectPending = true;
     renderTelegramRemindersUI();
     window.open(url, '_blank', 'noopener,noreferrer');
-    showTelegramMessage('1) В Telegram нажмите Start  2) Вернитесь сюда  3) «Проверить подключение»', 'info');
+    showTelegramMessage(t('telegram.connectSteps'), 'info');
     startTelegramConnectPoll();
   } catch (err) {
-    showTelegramMessage(err.message || 'Ошибка создания ссылки', 'error');
+    showTelegramMessage(err.message || t('auth.error.send'), 'error');
   }
 }
 
@@ -871,7 +886,7 @@ function startTelegramConnectPoll() {
         stopTelegramConnectPoll();
         renderTelegramRemindersUI();
         syncPoolReminderUI(getActivePool());
-        showTelegramMessage('Telegram подключён! Настройте напоминания ниже.', 'success');
+        showTelegramMessage(t('telegram.connectedSetup'), 'success');
       }
     } catch { /* retry */ }
   }, 3000);
@@ -885,18 +900,18 @@ async function handleCheckTelegram() {
     if (telegramSettings?.telegramChatId) {
       telegramConnectPending = false;
       stopTelegramConnectPoll();
-      showTelegramMessage('Telegram подключён! Настройте напоминания ниже.', 'success');
+      showTelegramMessage(t('telegram.connectedSetup'), 'success');
       syncPoolReminderUI(getActivePool());
     } else {
-      showTelegramMessage('Пока не подключено. Нажмите Start в боте.', 'warn');
+      showTelegramMessage(t('telegram.notConnectedYet'), 'warn');
     }
   } catch (err) {
-    showTelegramMessage(err.message || 'Ошибка проверки', 'error');
+    showTelegramMessage(err.message || t('auth.error.save'), 'error');
   }
 }
 
 async function handleDisconnectTelegram() {
-  if (!currentUser || !confirm('Отключить Telegram? Напоминания перестанут приходить.')) return;
+  if (!currentUser || !confirm(t('telegram.disconnectConfirm'))) return;
   try {
     telegramSettings = await dbSaveTelegramSettings(currentUser.id, {
       telegramChatId: null,
@@ -905,9 +920,9 @@ async function handleDisconnectTelegram() {
     });
     renderTelegramRemindersUI();
     syncPoolReminderUI(getActivePool());
-    showTelegramMessage('Telegram отключён.', 'success');
+    showTelegramMessage(t('telegram.disconnected'), 'success');
   } catch (err) {
-    showTelegramMessage(err.message || 'Ошибка отключения', 'error');
+    showTelegramMessage(err.message || t('auth.error.save'), 'error');
   }
 }
 
@@ -924,9 +939,9 @@ async function handleSaveTelegramSettings(e) {
       timezone
     });
     renderTelegramRemindersUI();
-    showTelegramMessage('Время сообщений сохранено.', 'success');
+    showTelegramMessage(t('telegram.timeSaved'), 'success');
   } catch (err) {
-    showTelegramMessage(err.message || 'Ошибка сохранения', 'error');
+    showTelegramMessage(err.message || t('auth.error.save'), 'error');
   }
 }
 
@@ -935,7 +950,7 @@ function syncPoolSettingsView(pool) {
   const treatEl = document.getElementById('poolTreatmentDisplay');
   if (!pool) return;
   if (volEl) volEl.textContent = formatVolume(pool.volume);
-  if (treatEl) treatEl.textContent = TREATMENT_LABELS[getPoolTreatment(pool)];
+  if (treatEl) treatEl.textContent = treatmentLabel(getPoolTreatment(pool));
 }
 
 function setPoolEditMode(edit) {
@@ -961,7 +976,7 @@ async function handleSavePoolSettings() {
     document.getElementById('customVolume')
   );
   if (!volume) {
-    alert('Введите объём от 1000 литров.');
+    alert(t('pool.enterVolume'));
     return;
   }
 
@@ -972,7 +987,7 @@ async function handleSavePoolSettings() {
     await dbUpsertPool(currentUser.id, pool, selectedProblems[pool.id] || []);
     setPoolEditMode(false);
     renderPoolContent();
-    showMessage(document.getElementById('selectorMessage'), 'Настройки бассейна сохранены.');
+    showMessage(document.getElementById('selectorMessage'), t('pool.settingsSaved'));
   } catch (err) {
     await handleDbError(err, 'savePoolSettings');
   }
@@ -991,6 +1006,11 @@ function syncPoolReminderUI(pool) {
   const telegramConnected = !!telegramSettings?.telegramChatId;
 
   if (nameEl) nameEl.textContent = pool?.name || '—';
+
+  const introEl = document.getElementById('telegramIntroHint');
+  if (introEl && pool?.name) {
+    introEl.innerHTML = `${escapeHtml(t('telegram.introPrefix'))} <strong>${escapeHtml(pool.name)}</strong>.`;
+  }
 
   if (!section) return;
 
@@ -1021,9 +1041,9 @@ async function handleSavePoolReminders() {
     await dbUpsertPool(currentUser.id, pool, selectedProblems[pool.id] || []);
     syncPoolReminderUI(pool);
     renderTelegramRemindersUI();
-    if (msgEl) showMessage(msgEl, enabled ? 'Напоминания для бассейна включены.' : 'Напоминания для бассейна выключены.', 'success');
+    if (msgEl) showMessage(msgEl, enabled ? t('telegram.remindersOn') : t('telegram.remindersOff'), 'success');
   } catch (err) {
-    if (msgEl) showMessage(msgEl, err.message || 'Ошибка сохранения', 'error');
+    if (msgEl) showMessage(msgEl, err.message || t('auth.error.save'), 'error');
     await handleDbError(err, 'savePoolReminders');
   }
 }
@@ -1051,10 +1071,10 @@ function showMessage(el, text, type = 'success') {
 
 function formatPoolMeta(pool, poolMeas, poolChem, treatmentType) {
   const parts = [
-    `Объём: ${formatVolume(pool.volume)}`,
-    TREATMENT_LABELS[treatmentType],
-    `Измерений: ${poolMeas.length}`,
-    `Записей химии: ${poolChem.length}`
+    t('pool.meta.volume', { volume: formatVolume(pool.volume) }),
+    treatmentLabel(treatmentType),
+    t('pool.meta.measurements', { count: poolMeas.length }),
+    t('pool.meta.chemistry', { count: poolChem.length })
   ];
   return parts.join(' · ');
 }
@@ -1119,7 +1139,7 @@ function setMapMarker(lat, lng, pan = true) {
     poolMarker = L.marker([lat, lng], { draggable: true }).addTo(poolMap);
     poolMarker.on('dragend', () => {
       const pos = poolMarker.getLatLng();
-      updateLocationStatus('Метка на карте — нажмите «Сохранить локацию»');
+      updateLocationStatus(t('location.markerSave'));
       updateRouteLinks(pos.lat, pos.lng, document.getElementById('poolAddress')?.value);
     });
   }
@@ -1128,7 +1148,7 @@ function setMapMarker(lat, lng, pan = true) {
     poolMap.setView([lat, lng], Math.max(poolMap.getZoom(), 14));
   }
   updateRouteLinks(lat, lng, document.getElementById('poolAddress')?.value);
-  updateLocationStatus('Метка на карте — нажмите «Сохранить локацию»');
+  updateLocationStatus(t('location.markerSave'));
 }
 
 function getMarkerCoords() {
@@ -1168,11 +1188,11 @@ function initPoolMap(pool) {
   if (typeof L === 'undefined') {
     if (mapInitRetries < 10) {
       mapInitRetries += 1;
-      updateLocationStatus('Загрузка карты...');
+      updateLocationStatus(t('location.loadingMap'));
       setTimeout(() => initPoolMap(pool), 400);
       return;
     }
-    updateLocationStatus('Карта не загрузилась. Проверьте интернет или обновите страницу.');
+    updateLocationStatus(t('location.mapFailed'));
     syncRouteFromPool(pool);
     return;
   }
@@ -1192,9 +1212,9 @@ function initPoolMap(pool) {
 
     if (hasCoords) {
       setMapMarker(loc.lat, loc.lng, false);
-      updateLocationStatus(loc.address || 'Локация сохранена');
+      updateLocationStatus(loc.address || t('location.saved'));
     } else {
-      updateLocationStatus('Кликните на карту, чтобы поставить метку, или найдите адрес.');
+      updateLocationStatus(t('location.clickOrSearch'));
     }
 
     poolMap.on('click', e => {
@@ -1205,7 +1225,7 @@ function initPoolMap(pool) {
     setTimeout(refreshMapSize, 500);
   } catch (err) {
     console.error('Map init error:', err);
-    updateLocationStatus('Не удалось показать карту. Используйте «Найти по адресу» или GPS — маршрут всё равно можно сохранить.');
+    updateLocationStatus(t('location.mapError'));
   }
 
   syncRouteFromPool(pool);
@@ -1234,7 +1254,7 @@ function updateLocationSummary(pool) {
   if (btn) {
     btn.setAttribute('aria-expanded', locationPanelOpen ? 'true' : 'false');
     btn.classList.toggle('is-open', locationPanelOpen);
-    btn.title = locationPanelOpen ? 'Скрыть карту' : 'Локация бассейна';
+    btn.title = locationPanelOpen ? t('location.hideMap') : t('location.btn');
   }
 }
 
@@ -1286,7 +1306,7 @@ function renderLocationUI(pool) {
 
 async function geocodeAddress(address) {
   try {
-    const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(address)}&limit=1&lang=ru`;
+    const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(address)}&limit=1&lang=${getNominatimLang()}`;
     const res = await fetch(photonUrl);
     if (res.ok) {
       const data = await res.json();
@@ -1304,8 +1324,8 @@ async function geocodeAddress(address) {
   } catch { /* fallback */ }
 
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&countrycodes=ua&accept-language=ru`;
-    const res = await fetch(url, { headers: NOMINATIM_HEADERS });
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&countrycodes=ua&accept-language=${getNominatimLang()}`;
+    const res = await fetch(url, { headers: getNominatimHeaders() });
     if (!res.ok) return null;
     const data = await res.json();
     if (!data.length) return null;
@@ -1320,8 +1340,8 @@ async function geocodeAddress(address) {
 }
 
 async function reverseGeocode(lat, lng) {
-  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=ru`;
-  const res = await fetch(url, { headers: NOMINATIM_HEADERS });
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=${getNominatimLang()}`;
+  const res = await fetch(url, { headers: getNominatimHeaders() });
   if (!res.ok) return '';
   const data = await res.json();
   return data.display_name || '';
@@ -1339,7 +1359,7 @@ async function savePoolLocation() {
   }
 
   if (!coords) {
-    alert('Сначала укажите точку на карте, нажмите «Найти по адресу» или «Моё местоположение».');
+    alert(t('location.pointRequired'));
     return false;
   }
 
@@ -1352,7 +1372,7 @@ async function savePoolLocation() {
   }
   syncRouteFromPool(pool);
   updateLocationSummary(pool);
-  updateLocationStatus(pool.location.address || 'Локация сохранена');
+  updateLocationStatus(pool.location.address || t('location.saved'));
   document.getElementById('activePoolMeta').textContent = formatPoolMeta(
     pool,
     getPoolMeasurements(pool.id),
@@ -1369,11 +1389,12 @@ function getParamStatus(value, norm) {
 }
 
 function getOverallStatus(ph, chlorine, temp, treatmentType) {
+  const norms = getNorms();
   const sanitizerNorm = getSanitizerNorm(treatmentType);
   const statuses = [
-    getParamStatus(ph, NORMS.ph),
+    getParamStatus(ph, norms.ph),
     getParamStatus(chlorine, sanitizerNorm),
-    getParamStatus(temp, NORMS.temperature)
+    getParamStatus(temp, norms.temperature)
   ];
   if (statuses.includes('crit')) return 'crit';
   if (statuses.includes('warn')) return 'warn';
@@ -1385,14 +1406,15 @@ function getPoolTreatment(pool) {
 }
 
 function getSanitizerNorm(treatmentType) {
-  return treatmentType === 'peroxide' ? NORMS.peroxide : NORMS.chlorine;
+  const norms = getNorms();
+  return treatmentType === 'peroxide' ? norms.peroxide : norms.chlorine;
 }
 
 function getSanitizerLabel(treatmentType, short) {
   if (treatmentType === 'peroxide') {
-    return short ? 'Перекись' : 'Перекись водорода (мг/л)';
+    return short ? t('measure.peroxideShort') : t('measure.peroxide');
   }
-  return short ? 'Хлор' : 'Свободный хлор (мг/л)';
+  return short ? t('measure.chlorineShort') : t('measure.chlorine');
 }
 
 function syncTreatmentSelect(treatmentType) {
@@ -1416,45 +1438,70 @@ function syncMeasurementLabels(treatmentType) {
 
 function getParamRecommendations(ph, chlorine, temp, treatmentType) {
   const recs = [];
+  const norms = getNorms();
   const sanitizerNorm = getSanitizerNorm(treatmentType);
-  const sanitizerName = treatmentType === 'peroxide' ? 'перекись' : 'хлор';
+  const sanitizerName = treatmentType === 'peroxide' ? t('rec.peroxideGenitive') : t('rec.chlorineGenitive');
+  const sanitizerDisplay = treatmentType === 'peroxide' ? t('rec.peroxide') : t('rec.chlorine');
+  const sanitizerAdd = treatmentType === 'peroxide' ? t('rec.peroxide') : t('rec.chlorine');
 
-  if (ph < NORMS.ph.min) {
-    recs.push({ level: ph < 6.8 ? 'crit' : 'warn', title: 'pH слишком низкий (' + ph + ')', text: 'Добавьте pH-плюс по инструкции. Цель: ' + NORMS.ph.ideal });
-  } else if (ph > NORMS.ph.max) {
-    recs.push({ level: ph > 8.0 ? 'crit' : 'warn', title: 'pH слишком высокий (' + ph + ')', text: 'Добавьте pH-минус по инструкции. Цель: ' + NORMS.ph.ideal });
+  if (ph < norms.ph.min) {
+    recs.push({
+      level: ph < 6.8 ? 'crit' : 'warn',
+      title: t('rec.phLow', { value: ph }),
+      text: t('rec.phLowText', { ideal: norms.ph.ideal })
+    });
+  } else if (ph > norms.ph.max) {
+    recs.push({
+      level: ph > 8.0 ? 'crit' : 'warn',
+      title: t('rec.phHigh', { value: ph }),
+      text: t('rec.phHighText', { ideal: norms.ph.ideal })
+    });
   } else {
-    recs.push({ level: 'ok', title: 'pH в норме (' + ph + ')', text: 'Диапазон ' + NORMS.ph.ideal + '.' });
+    recs.push({
+      level: 'ok',
+      title: t('rec.phOk', { value: ph }),
+      text: t('rec.range', { ideal: norms.ph.ideal })
+    });
   }
 
   if (chlorine < sanitizerNorm.min) {
     recs.push({
       level: chlorine < sanitizerNorm.min * 0.5 ? 'crit' : 'warn',
-      title: `Мало ${sanitizerName}а (${chlorine} мг/л)`,
-      text: `Добавьте ${treatmentType === 'peroxide' ? 'перекись' : 'хлор'} по инструкции. Цель: ${sanitizerNorm.ideal}`
+      title: t('rec.sanitizerLow', { name: sanitizerName, value: chlorine }),
+      text: t('rec.sanitizerLowText', { add: sanitizerAdd, ideal: sanitizerNorm.ideal })
     });
   } else if (chlorine > sanitizerNorm.max) {
     recs.push({
       level: chlorine > sanitizerNorm.max * 1.5 ? 'crit' : 'warn',
-      title: `Много ${sanitizerName}а (${chlorine} мг/л)`,
-      text: treatmentType === 'peroxide'
-        ? 'Подождите снижения уровня перекиси перед купанием.'
-        : 'Подождите снижения уровня хлора перед купанием.'
+      title: t('rec.sanitizerHigh', { name: sanitizerName, value: chlorine }),
+      text: treatmentType === 'peroxide' ? t('rec.sanitizerHighPeroxide') : t('rec.sanitizerHighChlorine')
     });
   } else {
     recs.push({
       level: 'ok',
-      title: `${sanitizerName.charAt(0).toUpperCase() + sanitizerName.slice(1)} в норме (${chlorine} мг/л)`,
-      text: 'Диапазон ' + sanitizerNorm.ideal + '.'
+      title: t('rec.sanitizerOk', { name: sanitizerDisplay.charAt(0).toUpperCase() + sanitizerDisplay.slice(1), value: chlorine }),
+      text: t('rec.range', { ideal: sanitizerNorm.ideal })
     });
   }
 
-  if (temp < NORMS.temperature.min) {
-    recs.push({ level: 'warn', title: 'Вода холодная (' + temp + ' °C)', text: 'Комфорт: ' + NORMS.temperature.ideal });
-  } else if (temp > NORMS.temperature.max) {
-    recs.push({ level: temp > 32 ? 'crit' : 'warn', title: 'Вода тёплая (' + temp + ' °C)', text: 'При высокой температуре чаще проверяйте воду.' });
+  if (temp < norms.temperature.min) {
+    recs.push({
+      level: 'warn',
+      title: t('rec.tempCold', { value: temp }),
+      text: t('rec.tempColdText', { ideal: norms.temperature.ideal })
+    });
+  } else if (temp > norms.temperature.max) {
+    recs.push({
+      level: temp > 32 ? 'crit' : 'warn',
+      title: t('rec.tempWarm', { value: temp }),
+      text: t('rec.tempWarmText')
+    });
   } else {
-    recs.push({ level: 'ok', title: 'Температура комфортная (' + temp + ' °C)', text: 'Диапазон ' + NORMS.temperature.ideal + '.' });
+    recs.push({
+      level: 'ok',
+      title: t('rec.tempOk', { value: temp }),
+      text: t('rec.range', { ideal: norms.temperature.ideal })
+    });
   }
 
   return recs;
@@ -1521,39 +1568,79 @@ function findPhotoForChemistry(chemEntry, poolId) {
   return candidates[0]?.photo || null;
 }
 
+function groupChemistryBySession(poolChem) {
+  const groupMap = new Map();
+
+  for (const entry of poolChem) {
+    const key = entry.date;
+    if (!groupMap.has(key)) {
+      groupMap.set(key, {
+        date: entry.date,
+        comment: entry.comment || '',
+        items: []
+      });
+    }
+    groupMap.get(key).items.push(entry);
+  }
+
+  return Array.from(groupMap.values())
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
+function formatChemistryGroupItems(items) {
+  if (items.length === 1) {
+    const item = items[0];
+    return `<span class="chem-history-single">${escapeHtml(translateChemicalName(item.chemical))} — ${item.amount} ${escapeHtml(translateUnit(item.unit))}</span>`;
+  }
+
+  return `<ul class="chem-history-list">${items.map(item =>
+    `<li>${escapeHtml(translateChemicalName(item.chemical))} — ${item.amount} ${escapeHtml(translateUnit(item.unit))}</li>`
+  ).join('')}</ul>`;
+}
+
+function formatChemistryGroupForReport(items) {
+  return items.map(item => `${translateChemicalName(item.chemical)} — ${item.amount} ${translateUnit(item.unit)}`).join('\n');
+}
+
+function findPhotoForChemistryGroup(group, poolId) {
+  return findPhotoForChemistry({ date: group.date }, poolId);
+}
+
 function renderChemistryHistory(poolChem, poolId) {
   const tbody = document.getElementById('chemistryBody');
   const empty = document.getElementById('emptyChemistry');
+  const groups = groupChemistryBySession(poolChem);
 
-  if (poolChem.length === 0) {
+  if (groups.length === 0) {
     tbody.innerHTML = '';
     empty.hidden = false;
     return;
   }
 
   empty.hidden = true;
-  tbody.innerHTML = poolChem.map(c => {
-    const date = new Date(c.date).toLocaleString('ru-RU', {
+  tbody.innerHTML = groups.map(group => {
+    const date = new Date(group.date).toLocaleString(getLocale(), {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
-    const comment = c.comment ? escapeHtml(c.comment) : '<span class="hint">—</span>';
-    return `<tr data-chem-id="${escapeHtml(c.id)}">
+    const comment = group.comment ? escapeHtml(group.comment) : '<span class="hint">—</span>';
+    const groupKey = encodeURIComponent(group.date);
+    return `<tr data-chem-group="${groupKey}">
       <td>${date}</td>
-      <td>${escapeHtml(c.chemical)}</td>
-      <td>${c.amount} ${escapeHtml(c.unit)}</td>
+      <td class="chem-items-cell">${formatChemistryGroupItems(group.items)}</td>
       <td class="comment-cell">${comment}</td>
       <td class="chem-photo-cell"><span class="hint">…</span></td>
     </tr>`;
   }).join('');
 
-  loadChemistryPhotoThumbs(poolChem, poolId);
+  loadChemistryGroupPhotoThumbs(groups, poolId);
 }
 
-async function loadChemistryPhotoThumbs(poolChem, poolId) {
-  await Promise.all(poolChem.map(async chemEntry => {
-    const photo = findPhotoForChemistry(chemEntry, poolId);
-    const cell = document.querySelector(`tr[data-chem-id="${chemEntry.id}"] .chem-photo-cell`);
+async function loadChemistryGroupPhotoThumbs(groups, poolId) {
+  await Promise.all(groups.map(async group => {
+    const photo = findPhotoForChemistryGroup(group, poolId);
+    const groupKey = encodeURIComponent(group.date);
+    const cell = document.querySelector(`tr[data-chem-group="${groupKey}"] .chem-photo-cell`);
     if (!cell) return;
 
     if (!photo) {
@@ -1563,7 +1650,7 @@ async function loadChemistryPhotoThumbs(poolChem, poolId) {
 
     try {
       const url = await dbGetPhotoUrl(photo.storagePath);
-      cell.innerHTML = `<a href="${url}" class="chem-photo-link" target="_blank" rel="noopener noreferrer"><img src="${url}" class="chem-history-thumb" alt="Фото бассейна" loading="lazy"></a>`;
+      cell.innerHTML = `<a href="${url}" class="chem-photo-link" target="_blank" rel="noopener noreferrer"><img src="${url}" class="chem-history-thumb" alt="${escapeHtml(t('chem.photoAlt'))}" loading="lazy"></a>`;
     } catch {
       cell.innerHTML = '<span class="hint">—</span>';
     }
@@ -1608,19 +1695,19 @@ function updateChemistryPhotoUI() {
     preview.classList.toggle('is-saved', !pendingChemistryPhoto && !!savedChemistryPhotoUrl);
     previewImg.src = previewUrl;
     previewLabel.textContent = pendingChemistryPhoto
-      ? 'Фото готово — нажмите «Сохранить запись»'
-      : 'Фото сохранено вместе с записью';
+      ? t('chem.photoReady')
+      : t('chem.photoSaved');
     btn.title = pendingChemistryPhoto
-      ? 'Фото выбрано — нажмите «Сохранить запись»'
-      : 'Фото сохранено';
+      ? t('chem.photoSelected')
+      : t('chem.photoSavedTitle');
     if (removeBtn) removeBtn.hidden = !pendingChemistryPhoto;
   } else {
     btn.classList.remove('has-photo');
     preview.classList.add('hidden');
     preview.classList.remove('is-saved');
     previewImg.removeAttribute('src');
-    previewLabel.textContent = 'Фото готово — нажмите «Сохранить запись»';
-    btn.title = 'Добавить фото бассейна';
+    previewLabel.textContent = t('chem.photoReady');
+    btn.title = t('chem.photoBtn');
     if (removeBtn) removeBtn.hidden = false;
   }
 }
@@ -1692,7 +1779,7 @@ async function startCameraStream() {
   if (!video) return;
 
   if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error('Камера недоступна в этом браузере');
+    throw new Error(t('camera.unavailable'));
   }
 
   if (errorEl) {
@@ -1725,7 +1812,7 @@ async function openCameraCapture() {
     const errorEl = document.getElementById('cameraError');
     const fallbackBtn = document.getElementById('cameraFallbackBtn');
     if (errorEl) {
-      errorEl.textContent = 'Не удалось включить камеру. Разрешите доступ или выберите файл.';
+      errorEl.textContent = t('camera.error');
       errorEl.hidden = false;
     }
     if (fallbackBtn) fallbackBtn.classList.remove('hidden');
@@ -1740,7 +1827,7 @@ function capturePhotoFromCamera() {
   const video = document.getElementById('cameraPreview');
   const canvas = document.getElementById('cameraCanvas');
   if (!video || !canvas || !video.videoWidth) {
-    alert('Камера ещё не готова. Подождите секунду и попробуйте снова.');
+    alert(t('camera.notReady'));
     return;
   }
 
@@ -1750,7 +1837,7 @@ function capturePhotoFromCamera() {
 
   canvas.toBlob(blob => {
     if (!blob) {
-      alert('Не удалось сделать фото.');
+      alert(t('camera.captureFailed'));
       return;
     }
     setPendingChemistryPhoto(new File([blob], `pool-${Date.now()}.jpg`, { type: 'image/jpeg' }));
@@ -1797,7 +1884,7 @@ function renderPoolContent() {
     );
   } else {
     document.getElementById('paramRecommendations').innerHTML =
-      '<div class="rec-item info"><strong>Нет измерений</strong>Добавьте первое измерение.</div>';
+      `<div class="rec-item info"><strong>${escapeHtml(t('measure.noData'))}</strong>${escapeHtml(t('measure.noDataHint'))}</div>`;
   }
 
   renderHistory(poolMeas, treatmentType);
@@ -1825,8 +1912,8 @@ function renderHistory(poolMeas, treatmentType) {
   empty.hidden = true;
   tbody.innerHTML = poolMeas.map(m => {
     const status = getOverallStatus(m.ph, m.chlorine, m.temperature, treatmentType);
-    const statusText = status === 'ok' ? 'Норма' : status === 'warn' ? 'Внимание' : 'Критично';
-    const date = new Date(m.date).toLocaleString('ru-RU', {
+    const statusText = status === 'ok' ? t('status.ok') : status === 'warn' ? t('status.warn') : t('status.crit');
+    const date = new Date(m.date).toLocaleString(getLocale(), {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
@@ -1843,13 +1930,13 @@ function renderHistory(poolMeas, treatmentType) {
 function renderCharts(poolMeas, treatmentType) {
   const sorted = [...poolMeas].sort((a, b) => new Date(a.date) - new Date(b.date));
   const labels = sorted.map(m =>
-    new Date(m.date).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    new Date(m.date).toLocaleString(getLocale(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
   );
 
   const sanitizerNorm = getSanitizerNorm(treatmentType);
   updateChart('ph', sorted.map(m => m.ph), labels, 'pH', '#1a8fc7', 7.2, 7.6);
   updateChart('chlorine', sorted.map(m => m.chlorine), labels, getSanitizerLabel(treatmentType, false), '#2db86a', sanitizerNorm.min, sanitizerNorm.max);
-  updateChart('temp', sorted.map(m => m.temperature), labels, 'Температура (°C)', '#e6a020', 24, 28);
+  updateChart('temp', sorted.map(m => m.temperature), labels, t('measure.temperature'), '#e6a020', 24, 28);
 }
 
 function updateChart(key, data, labels, label, color, normMin, normMax) {
@@ -1925,6 +2012,101 @@ function getChemicalName() {
   return select.value;
 }
 
+function readChemistryFormItem({ alertOnError = true } = {}) {
+  const chemical = getChemicalName();
+  const amountRaw = document.getElementById('chemicalAmount').value.trim();
+  const amount = parseFloat(amountRaw);
+  const unit = document.getElementById('chemicalUnit').value;
+
+  if (!amountRaw) return null;
+
+  if (!chemical) {
+    if (alertOnError) alert(t('chem.nameRequired'));
+    return null;
+  }
+  if (!amount || amount <= 0) {
+    if (alertOnError) alert(t('chem.amountRequired'));
+    return null;
+  }
+
+  return { chemical, amount, unit };
+}
+
+function resetChemistryItemFields() {
+  document.getElementById('chemicalName').value = document.getElementById('chemicalName').options[0].value;
+  document.getElementById('chemicalAmount').value = '';
+  document.getElementById('customChemical').value = '';
+  document.getElementById('customChemicalWrap').classList.add('hidden');
+}
+
+function renderChemistryBatch() {
+  const wrap = document.getElementById('chemistryBatchWrap');
+  const list = document.getElementById('chemistryBatchItems');
+  const saveBtn = document.getElementById('saveChemistryBtn');
+  if (!wrap || !list) return;
+
+  if (pendingChemistryBatch.length === 0) {
+    wrap.classList.add('hidden');
+    list.innerHTML = '';
+    if (saveBtn) saveBtn.textContent = t('chem.save');
+    return;
+  }
+
+  wrap.classList.remove('hidden');
+  list.innerHTML = pendingChemistryBatch.map(item => `
+    <li class="chemistry-batch-item" data-batch-id="${escapeHtml(item.tempId)}">
+      <span class="chemistry-batch-item-text">${escapeHtml(translateChemicalName(item.chemical))} — ${item.amount} ${escapeHtml(translateUnit(item.unit))}</span>
+      <button type="button" class="chemistry-batch-remove" data-batch-id="${escapeHtml(item.tempId)}">${escapeHtml(t('chem.remove'))}</button>
+    </li>
+  `).join('');
+
+  if (saveBtn) {
+    saveBtn.textContent = pendingChemistryBatch.length === 1
+      ? t('chem.save')
+      : t('chem.saveCount', { count: pendingChemistryBatch.length });
+  }
+}
+
+function addChemistryItemToBatch() {
+  const item = readChemistryFormItem();
+  if (!item) return;
+
+  pendingChemistryBatch.push({
+    tempId: generateId(),
+    chemical: item.chemical,
+    amount: item.amount,
+    unit: item.unit
+  });
+
+  renderChemistryBatch();
+  resetChemistryItemFields();
+  document.getElementById('chemicalName').focus();
+}
+
+function removeChemistryBatchItem(tempId) {
+  pendingChemistryBatch = pendingChemistryBatch.filter(item => item.tempId !== tempId);
+  renderChemistryBatch();
+}
+
+function clearChemistryBatch() {
+  pendingChemistryBatch = [];
+  renderChemistryBatch();
+}
+
+function collectChemistryItemsForSave() {
+  const items = [...pendingChemistryBatch];
+  const current = readChemistryFormItem({ alertOnError: items.length === 0 });
+  if (current) {
+    items.push({
+      tempId: generateId(),
+      chemical: current.chemical,
+      amount: current.amount,
+      unit: current.unit
+    });
+  }
+  return items;
+}
+
 function initAuthListeners() {
   document.querySelectorAll('.auth-tab').forEach(btn => {
     btn.addEventListener('click', () => switchAuthTab(btn.dataset.tab));
@@ -1956,7 +2138,7 @@ function initEventListeners() {
       return;
     }
     if (await setActivePool(poolId)) {
-      showMessage(document.getElementById('selectorMessage'), `Выбран бассейн «${getActivePool().name}»`);
+      showMessage(document.getElementById('selectorMessage'), t('pool.selected', { name: getActivePool().name }));
     }
   });
 
@@ -1984,7 +2166,7 @@ function initEventListeners() {
     const errorEl = document.getElementById('modalError');
 
     if (!name) {
-      errorEl.textContent = 'Введите название бассейна.';
+      errorEl.textContent = t('pool.nameRequired');
       errorEl.hidden = false;
       return;
     }
@@ -1995,7 +2177,7 @@ function initEventListeners() {
     );
 
     if (!volume) {
-      errorEl.textContent = 'Введите объём в литрах (от 1000).';
+      errorEl.textContent = t('pool.volumeRequired');
       errorEl.hidden = false;
       return;
     }
@@ -2017,7 +2199,7 @@ function initEventListeners() {
       closePoolModal();
       renderPoolSelect();
       await setActivePool(pool.id);
-      showMessage(document.getElementById('selectorMessage'), `Бассейн «${name}» добавлен!`);
+      showMessage(document.getElementById('selectorMessage'), t('pool.added', { name }));
     } catch (err) {
       await handleDbError(err, 'addPool');
     }
@@ -2026,7 +2208,7 @@ function initEventListeners() {
   document.getElementById('deletePoolBtn').addEventListener('click', async () => {
     if (poolList.length <= 1) return;
     const pool = getActivePool();
-    if (!confirm(`Удалить бассейн «${pool.name}» и все его данные?`)) return;
+    if (!confirm(t('pool.deleteConfirm', { name: pool.name }))) return;
 
     const deletedId = activePoolId;
     try {
@@ -2040,7 +2222,7 @@ function initEventListeners() {
       saveActivePoolId();
       renderPoolSelect();
       await setActivePool(activePoolId);
-      showMessage(document.getElementById('selectorMessage'), 'Бассейн удалён.');
+      showMessage(document.getElementById('selectorMessage'), t('pool.deleted'));
     } catch (err) {
       await handleDbError(err, 'deletePool');
     }
@@ -2112,7 +2294,7 @@ function initEventListeners() {
       measurements.unshift(saved);
       renderPoolContent();
       e.target.reset();
-      showMessage(document.getElementById('selectorMessage'), 'Измерение сохранено!');
+      showMessage(document.getElementById('selectorMessage'), t('measure.saved'));
     } catch (err) {
       await handleDbError(err, 'saveMeasurement');
     }
@@ -2123,56 +2305,61 @@ function initEventListeners() {
     if (e.target.value === 'custom') document.getElementById('customChemical').focus();
   });
 
+  document.getElementById('addChemistryItemBtn')?.addEventListener('click', addChemistryItemToBatch);
+  document.getElementById('chemistryBatchItems')?.addEventListener('click', e => {
+    const btn = e.target.closest('.chemistry-batch-remove');
+    if (btn?.dataset.batchId) removeChemistryBatchItem(btn.dataset.batchId);
+  });
+
   document.getElementById('chemistryForm').addEventListener('submit', async e => {
     e.preventDefault();
     const pool = getActivePool();
     if (!pool) return;
 
-    const chemical = getChemicalName();
-    const amount = parseFloat(document.getElementById('chemicalAmount').value);
-    const unit = document.getElementById('chemicalUnit').value;
+    const items = collectChemistryItemsForSave();
+    if (items.length === 0) {
+      alert(t('chem.atLeastOne'));
+      return;
+    }
+
     const comment = document.getElementById('chemicalComment').value.trim();
-
-    if (!chemical) {
-      alert('Укажите название химии.');
-      return;
-    }
-    if (!amount || amount <= 0) {
-      alert('Укажите количество больше нуля.');
-      return;
-    }
-
-    const entry = {
-      id: generateId(),
-      poolId: pool.id,
-      chemical,
-      amount,
-      unit,
-      comment,
-      date: new Date().toISOString()
-    };
+    const saveDate = new Date().toISOString();
+    const hadPhoto = !!pendingChemistryPhoto;
+    const photoFile = pendingChemistryPhoto;
 
     try {
-      const saved = await dbInsertChemistry(currentUser.id, entry);
-      chemistryLog.unshift(saved);
+      for (const item of items) {
+        const entry = {
+          id: generateId(),
+          poolId: pool.id,
+          chemical: item.chemical,
+          amount: item.amount,
+          unit: item.unit,
+          comment,
+          date: saveDate
+        };
+        const saved = await dbInsertChemistry(currentUser.id, entry);
+        chemistryLog.unshift(saved);
+      }
 
-      const hadPhoto = !!pendingChemistryPhoto;
-      const photoFile = pendingChemistryPhoto;
       if (pendingChemistryPhoto) {
-        const caption = `${chemical}, ${amount} ${unit}`;
+        const caption = items.map(item => `${item.chemical}, ${item.amount} ${item.unit}`).join('; ');
         const photo = await dbUploadPhoto(currentUser.id, pool.id, pendingChemistryPhoto, caption);
         poolPhotos.unshift(photo);
         clearPendingChemistryPhoto();
         if (photoFile) showSavedChemistryPhotoPreview(photoFile);
       }
 
+      clearChemistryBatch();
       renderPoolContent();
       e.target.reset();
-      document.getElementById('customChemicalWrap').classList.add('hidden');
+      resetChemistryItemFields();
       if (hadPhoto) setChemistryHistoryOpen(true);
       showMessage(
         document.getElementById('selectorMessage'),
-        hadPhoto ? 'Запись и фото сохранены!' : 'Запись о химии сохранена!'
+        hadPhoto
+          ? t('chem.savedWithPhoto', { count: items.length })
+          : t('chem.savedCount', { count: items.length })
       );
     } catch (err) {
       await handleDbError(err, 'saveChemistry');
@@ -2181,13 +2368,13 @@ function initEventListeners() {
 
   document.getElementById('clearChemistryBtn').addEventListener('click', async () => {
     const pool = getActivePool();
-    if (!pool || !confirm(`Очистить историю химии для «${pool.name}»?`)) return;
+    if (!pool || !confirm(t('chem.clearConfirm', { name: pool.name }))) return;
 
     try {
       await dbClearChemistry(pool.id);
       chemistryLog = chemistryLog.filter(c => c.poolId !== pool.id);
       renderPoolContent();
-      showMessage(document.getElementById('selectorMessage'), 'История химии очищена.');
+      showMessage(document.getElementById('selectorMessage'), t('chem.cleared'));
     } catch (err) {
       await handleDbError(err, 'clearChemistry');
     }
@@ -2195,13 +2382,13 @@ function initEventListeners() {
 
   document.getElementById('clearHistoryBtn').addEventListener('click', async () => {
     const pool = getActivePool();
-    if (!pool || !confirm(`Очистить историю измерений для «${pool.name}»?`)) return;
+    if (!pool || !confirm(t('measure.clearConfirm', { name: pool.name }))) return;
 
     try {
       await dbClearMeasurements(pool.id);
       measurements = measurements.filter(m => m.poolId !== pool.id);
       renderPoolContent();
-      showMessage(document.getElementById('selectorMessage'), 'История очищена.');
+      showMessage(document.getElementById('selectorMessage'), t('measure.cleared'));
     } catch (err) {
       await handleDbError(err, 'clearMeasurements');
     }
@@ -2215,31 +2402,31 @@ function initEventListeners() {
   document.getElementById('geocodeBtn').addEventListener('click', async () => {
     const address = document.getElementById('poolAddress').value.trim();
     if (!address) {
-      alert('Введите адрес для поиска.');
+      alert(t('location.enterAddress'));
       return;
     }
 
-    updateLocationStatus('Ищем адрес...');
+    updateLocationStatus(t('location.searching'));
     try {
       const result = await geocodeAddress(address);
       if (!result) {
-        updateLocationStatus('Адрес не найден. Попробуйте другую формулировку.');
+        updateLocationStatus(t('location.notFound'));
         return;
       }
       document.getElementById('poolAddress').value = result.address;
       setMapMarker(result.lat, result.lng);
     } catch {
-      updateLocationStatus('Ошибка поиска. Проверьте интернет.');
+      updateLocationStatus(t('location.searchError'));
     }
   });
 
   document.getElementById('gpsBtn').addEventListener('click', () => {
     if (!navigator.geolocation) {
-      alert('Геолокация не поддерживается в этом браузере.');
+      alert(t('location.geoUnsupported'));
       return;
     }
 
-    updateLocationStatus('Определяем местоположение...');
+    updateLocationStatus(t('location.gettingGps'));
     navigator.geolocation.getCurrentPosition(
       async pos => {
         const { latitude, longitude } = pos.coords;
@@ -2248,15 +2435,15 @@ function initEventListeners() {
           const address = await reverseGeocode(latitude, longitude);
           if (address) {
             document.getElementById('poolAddress').value = address;
-            updateLocationStatus(`Найдено: ${address}`);
+            updateLocationStatus(t('location.found', { address }));
           }
         } catch {
           /* coords already set on map */
         }
       },
       () => {
-        updateLocationStatus('Не удалось определить GPS. Разрешите доступ к геолокации.');
-        alert('Разрешите доступ к местоположению в настройках браузера.');
+        updateLocationStatus(t('location.gpsFailed'));
+        alert(t('location.gpsPermission'));
       },
       { enableHighAccuracy: true, timeout: 15000 }
     );
@@ -2264,7 +2451,7 @@ function initEventListeners() {
 
   document.getElementById('saveLocationBtn').addEventListener('click', async () => {
     if (await savePoolLocation()) {
-      showMessage(document.getElementById('selectorMessage'), 'Локация бассейна сохранена!');
+      showMessage(document.getElementById('selectorMessage'), t('location.savedSuccess'));
     }
   });
 
@@ -2273,7 +2460,33 @@ function initEventListeners() {
   });
 }
 
+function handleLanguageChange() {
+  applyTranslations();
+  resetAuthCardHeader();
+  if (pendingPasswordRecovery) {
+    const title = document.querySelector('.auth-card h1');
+    const subtitle = document.querySelector('.auth-card .subtitle');
+    if (title) title.textContent = t('auth.newPasswordTitle');
+    if (subtitle) subtitle.textContent = t('auth.newPasswordSubtitle');
+  }
+  if (currentUser) {
+    renderPoolSelect();
+    renderPoolContent();
+    renderTelegramRemindersUI();
+    syncPoolReminderUI(getActivePool());
+    setMeasurementHistoryOpen(measurementHistoryOpen);
+    setChemistryHistoryOpen(chemistryHistoryOpen);
+    updateChemistryPhotoUI();
+    renderChemistryBatch();
+  }
+}
+
+function initLanguageListener() {
+  window.addEventListener('languagechange', handleLanguageChange);
+}
+
 async function init() {
+  initI18n();
   registerServiceWorker();
 
   if (!initSupabaseClient()) {
@@ -2283,6 +2496,7 @@ async function init() {
 
   setupSupabaseAuthListener();
   initAuthListeners();
+  initLanguageListener();
   initTelegramReminders();
   initEventListeners();
 
@@ -2335,7 +2549,7 @@ function registerServiceWorker() {
   const checkForSwUpdate = () => swRegistration?.update().catch(() => {});
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=22')
+    navigator.serviceWorker.register('./sw.js?v=25')
       .then(reg => {
         swRegistration = reg;
         if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });

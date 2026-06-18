@@ -50,7 +50,7 @@ header {
   width: 100%;
   text-align: center;
   padding-right: 52px;
-  padding-left: 52px;
+  padding-left: 72px;
   box-sizing: border-box;
 }
 
@@ -153,6 +153,49 @@ header {
   background: #fde8e8;
 }
 
+.lang-switcher {
+  display: inline-flex;
+  border: 1px solid #d8eaf4;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.lang-btn {
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: #3d6b80;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.2;
+  transition: background 0.15s, color 0.15s;
+}
+
+.lang-btn:hover {
+  background: #e0f4ff;
+}
+
+.lang-btn.active {
+  background: #1a8fc7;
+  color: #fff;
+}
+
+.auth-lang-switcher {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.header-lang-switcher {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 20;
+}
+
 @media (min-width: 769px) {
   .header-row {
     flex-direction: row;
@@ -166,7 +209,7 @@ header {
     min-width: 0;
     text-align: left;
     padding-right: 56px;
-    padding-left: 0;
+    padding-left: 72px;
   }
 }
 
@@ -258,6 +301,7 @@ select:focus, input:focus, textarea:focus {
   box-shadow: 0 8px 32px rgba(13, 74, 107, 0.15);
   text-align: center;
   margin: 0 auto;
+  position: relative;
 }
 
 .auth-card h1 {
@@ -1045,6 +1089,89 @@ td.comment-cell {
   margin-bottom: 8px;
 }
 
+.chemistry-add-item-btn {
+  margin-top: 2px;
+  margin-bottom: 0;
+}
+
+.chemistry-batch-wrap {
+  margin: 12px 0 0;
+  padding: 12px;
+  background: #f8fcff;
+  border: 1px solid #d8eaf4;
+  border-radius: 10px;
+}
+
+.chemistry-batch-title {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0d4a6b;
+}
+
+.chemistry-batch-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chemistry-batch-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid #e0eef6;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  color: #0d4a6b;
+}
+
+.chemistry-batch-item-text {
+  min-width: 0;
+  word-break: break-word;
+}
+
+.chemistry-batch-remove {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 6px;
+  background: #fdeaea;
+  color: #c94a4a;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.chemistry-batch-remove:hover {
+  background: #f8d4d4;
+}
+
+.chemistry-save-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #d8eaf4;
+}
+
+.chemistry-save-label {
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #6a8a9a;
+}
+
+.chemistry-save-section .form-actions-row {
+  margin-top: 0;
+}
+
 .chemistry-photo-btn {
   display: inline-flex;
   align-items: center;
@@ -1114,6 +1241,26 @@ td.comment-cell {
 .chemistry-photo-preview.is-saved {
   border-color: #1a8fc7;
   background: #e8f4fa;
+}
+
+.chem-history-list {
+  margin: 0;
+  padding-left: 18px;
+  list-style: disc;
+}
+
+.chem-history-list li {
+  margin: 3px 0;
+  line-height: 1.35;
+}
+
+.chem-history-list li::marker {
+  color: #1a8fc7;
+}
+
+.chem-history-single {
+  display: block;
+  line-height: 1.4;
 }
 
 .chem-photo-cell {
