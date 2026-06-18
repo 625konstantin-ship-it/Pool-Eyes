@@ -8,6 +8,7 @@ const I18N_RU = {
   'lang.label': 'Язык',
   'lang.ru': 'RU',
   'lang.en': 'EN',
+  'lang.es': 'ES',
 
   'auth.subtitle': 'Войдите или создайте учётную запись',
   'auth.tab.login': 'Вход',

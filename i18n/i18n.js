@@ -1,5 +1,5 @@
 const LANG_STORAGE_KEY = 'poolAppLang';
-const SUPPORTED_LANGS = ['ru', 'en'];
+const SUPPORTED_LANGS = ['ru', 'en', 'es'];
 
 let currentLang = 'ru';
 const langChangeListeners = [];
@@ -10,11 +10,13 @@ function getStoredLang() {
     if (stored && SUPPORTED_LANGS.includes(stored)) return stored;
   } catch { /* ignore */ }
   const browser = (navigator.language || 'ru').slice(0, 2).toLowerCase();
-  return browser === 'en' ? 'en' : 'ru';
+  if (SUPPORTED_LANGS.includes(browser)) return browser;
+  return 'ru';
 }
 
 function getTranslations(lang) {
   if (lang === 'en') return typeof I18N_EN !== 'undefined' ? I18N_EN : {};
+  if (lang === 'es') return typeof I18N_ES !== 'undefined' ? I18N_ES : {};
   return typeof I18N_RU !== 'undefined' ? I18N_RU : {};
 }
 
@@ -23,7 +25,9 @@ function getLang() {
 }
 
 function getLocale() {
-  return currentLang === 'en' ? 'en-US' : 'ru-RU';
+  if (currentLang === 'en') return 'en-US';
+  if (currentLang === 'es') return 'es-ES';
+  return 'ru-RU';
 }
 
 function t(key, params) {
@@ -44,6 +48,9 @@ function t(key, params) {
 function getPoolProblems() {
   if (currentLang === 'en' && typeof POOL_PROBLEMS_EN !== 'undefined') {
     return POOL_PROBLEMS_EN;
+  }
+  if (currentLang === 'es' && typeof POOL_PROBLEMS_ES !== 'undefined') {
+    return POOL_PROBLEMS_ES;
   }
   if (typeof POOL_PROBLEMS_RU !== 'undefined') return POOL_PROBLEMS_RU;
   return typeof POOL_PROBLEMS_EN !== 'undefined' ? POOL_PROBLEMS_EN : [];

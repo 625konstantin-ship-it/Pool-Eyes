@@ -150,7 +150,8 @@ function updatePoolProblems() {
 
 function formatProblemsPoolVolume(liters) {
   const formatted = Number(liters).toLocaleString(getLocale());
-  return getLang() === 'en' ? `${formatted} L` : `${formatted} л`;
+  const unit = getLang() === 'ru' ? 'л' : 'L';
+  return `${formatted} ${unit}`;
 }
 
 function renderProblemsContent() {

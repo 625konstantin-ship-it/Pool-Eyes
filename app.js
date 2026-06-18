@@ -12,7 +12,10 @@ function treatmentLabel(type) {
 }
 
 function getNominatimLang() {
-  return getLang() === 'en' ? 'en' : 'ru';
+  const lang = getLang();
+  if (lang === 'en') return 'en';
+  if (lang === 'es') return 'es';
+  return 'ru';
 }
 
 function getNominatimHeaders() {
@@ -583,7 +586,8 @@ function getPoolChemistry(poolId) {
 
 function formatVolume(liters) {
   const formatted = Number(liters).toLocaleString(getLocale());
-  return getLang() === 'en' ? `${formatted} L` : `${formatted} л`;
+  const unit = getLang() === 'ru' ? 'л' : 'L';
+  return `${formatted} ${unit}`;
 }
 
 function formatReportDateTime(iso) {
@@ -2549,7 +2553,7 @@ function registerServiceWorker() {
   const checkForSwUpdate = () => swRegistration?.update().catch(() => {});
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=25')
+    navigator.serviceWorker.register('./sw.js?v=27')
       .then(reg => {
         swRegistration = reg;
         if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
