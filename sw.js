@@ -1,4 +1,4 @@
-const CACHE = 'pool-eyes-v1';
+const CACHE = 'pool-eyes-v2';
 
 const SHELL = [
   './',
@@ -8,6 +8,7 @@ const SHELL = [
   './config.js',
   './supabase-db.js',
   './manifest.webmanifest',
+  './icons/icon-180.png',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];
