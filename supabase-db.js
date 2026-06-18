@@ -78,7 +78,7 @@ function mapPhotoRow(row) {
 }
 
 async function authSignUp(email, password, displayName) {
-  if (!sb) return { ok: false, error: 'Supabase не подключён. Обновите страницу.' };
+  if (!sb) return { ok: false, error: t('auth.error.supabaseDisconnected') };
   const { data, error } = await sb.auth.signUp({
     email: email.trim().toLowerCase(),
     password,
@@ -91,14 +91,14 @@ async function authSignUp(email, password, displayName) {
     return {
       ok: true,
       needsConfirmation: true,
-      message: 'Проверьте почту и подтвердите регистрацию по ссылке из письма.'
+      message: t('auth.checkEmailConfirm')
     };
   }
   return { ok: true, user: mapUser(data.session), session: data.session };
 }
 
 async function authSignIn(email, password) {
-  if (!sb) return { ok: false, error: 'Supabase не подключён. Обновите страницу.' };
+  if (!sb) return { ok: false, error: t('auth.error.supabaseDisconnected') };
   const { data, error } = await sb.auth.signInWithPassword({
     email: email.trim().toLowerCase(),
     password
@@ -118,12 +118,12 @@ async function authResetPassword(email) {
   if (error) return { ok: false, error: translateAuthError(error.message) };
   return {
     ok: true,
-    message: 'Ссылка отправлена на ' + email.trim() + '. Откройте письмо (и папку «Спам»), перейдите по ссылке и задайте новый пароль на сайте.'
+    message: t('auth.resetEmailSent', { email: email.trim() })
   };
 }
 
 async function authUpdatePassword(password) {
-  if (!sb) return { ok: false, error: 'Supabase не подключён. Обновите страницу.' };
+  if (!sb) return { ok: false, error: t('auth.error.supabaseDisconnected') };
   const { data, error } = await sb.auth.updateUser({ password });
   if (error) return { ok: false, error: translateAuthError(error.message) };
   return { ok: true, user: data.user };
@@ -141,18 +141,6 @@ function getPasswordResetRedirectUrl() {
 async function authGetSession() {
   const { data: { session } } = await sb.auth.getSession();
   return session;
-}
-
-function translateAuthError(msg) {
-  if (msg.includes('Invalid login credentials')) return 'Неверный email или пароль.';
-  if (msg.includes('User already registered')) return 'Этот email уже зарегистрирован.';
-  if (msg.includes('Email not confirmed')) return 'Подтвердите email — проверьте почту.';
-  if (msg.includes('Password should be at least')) return 'Пароль — минимум 6 символов.';
-  if (msg.includes('invalid') && msg.toLowerCase().includes('email')) return 'Некорректный email. Используйте формат name@gmail.com';
-  if (msg.includes('rate limit')) return 'Слишком много попыток. Подождите 1–2 минуты и попробуйте снова.';
-  if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) return 'Нет связи с сервером. Проверьте интернет.';
-  if (msg.includes('same as the old')) return 'Новый пароль должен отличаться от старого.';
-  return msg;
 }
 
 async function dbLoadUserData(userId) {
@@ -250,7 +238,7 @@ async function dbCreateDefaultPool(userId) {
   const pool = {
     id: crypto.randomUUID(),
     user_id: userId,
-    name: 'Мой бассейн',
+    name: t('pool.defaultName'),
     volume: 25000,
     treatment_type: 'chlorine',
     location: { address: '', lat: null, lng: null },
@@ -269,10 +257,10 @@ async function dbGetPhotoUrl(storagePath) {
 
 async function dbUploadPhoto(userId, poolId, file, caption) {
   if (!ALLOWED_PHOTO_TYPES.includes(file.type)) {
-    throw new Error('Формат не поддерживается. Используйте JPG, PNG или WebP.');
+    throw new Error(t('error.photoFormat'));
   }
   if (file.size > MAX_PHOTO_BYTES) {
-    throw new Error('Файл слишком большой. Максимум 5 МБ.');
+    throw new Error(t('error.photoSize'));
   }
 
   const photoId = crypto.randomUUID();

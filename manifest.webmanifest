@@ -1,7 +1,7 @@
 {
-  "name": "Бассейн",
-  "short_name": "Бассейн",
-  "description": "Учёт pH, хлора, температуры и обслуживания бассейна",
+  "name": "Pool Eyes",
+  "short_name": "Pool Eyes",
+  "description": "Контроль параметров бассейна",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -11,7 +11,12 @@
   "lang": "ru",
   "icons": [
     {
-      "src": "icons/icon-180.png",
+      "src": "logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"

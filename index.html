@@ -13,13 +13,28 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
   <link rel="manifest" href="manifest.webmanifest?v=3">
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=2">
+  <link rel="icon" type="image/svg+xml" href="logo.svg?v=1">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=2">
-  <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png?v=2">
-  <link rel="stylesheet" href="styles.css?v=32">
+  <link rel="stylesheet" href="styles.css?v=33">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body data-page-title-key="app.pageTitle">
+  <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" width="0" height="0" style="position:absolute">
+    <defs>
+      <linearGradient id="poolEyesBg" x1="24" y1="0" x2="24" y2="48" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#42c8f0"/>
+        <stop offset="100%" stop-color="#1684c8"/>
+      </linearGradient>
+      <symbol id="pool-eyes-logo" viewBox="0 0 48 48">
+        <rect width="48" height="48" rx="10" fill="url(#poolEyesBg)"/>
+        <path d="M24 8c-2.2 0-4 1.6-4 3.6 0 2.4 4 6.4 4 6.4s4-4 4-6.4C28 9.6 26.2 8 24 8z" fill="#fff"/>
+        <rect x="8" y="18" width="32" height="22" rx="7" fill="#fff"/>
+        <rect x="11" y="21" width="26" height="16" rx="5" fill="#1ec8ee"/>
+        <path d="M15 28c3-2 6-2 9 0s6 2 9 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        <path d="M15 32c3-2 6-2 9 0s6 2 9 0" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+      </symbol>
+    </defs>
+  </svg>
   <div id="authScreen" class="auth-screen">
     <div class="auth-card">
       <div class="lang-switcher auth-lang-switcher" role="group" aria-label="Language">
@@ -29,7 +44,7 @@
       </div>
       <div id="authBrandHeader">
         <div class="brand">
-          <img src="icons/icon-192.png?v=2" alt="" class="brand-logo" width="36" height="36">
+          <svg class="brand-logo" aria-hidden="true" focusable="false"><use href="#pool-eyes-logo"></use></svg>
           <h1 class="brand-name">Pool Eyes</h1>
         </div>
         <p class="subtitle" id="authSubtitle" data-i18n="app.subtitle">Контроль параметров бассейна</p>
@@ -124,7 +139,7 @@
         </div>
         <div class="header-title">
           <div class="brand">
-            <img src="icons/icon-192.png?v=2" alt="" class="brand-logo" width="36" height="36">
+            <svg class="brand-logo" aria-hidden="true" focusable="false"><use href="#pool-eyes-logo"></use></svg>
             <h1 class="brand-name">Pool Eyes</h1>
           </div>
           <p class="subtitle" data-i18n="app.subtitle">Контроль параметров бассейна</p>
