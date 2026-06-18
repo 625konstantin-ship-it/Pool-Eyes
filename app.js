@@ -600,6 +600,154 @@ function formatVolume(liters) {
   return Number(liters).toLocaleString('ru-RU') + ' л';
 }
 
+function formatReportDateTime(iso) {
+  return new Date(iso).toLocaleString('ru-RU', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+}
+
+function statusLabelForReport(status) {
+  if (status === 'ok') return 'Норма';
+  if (status === 'warn') return 'Внимание';
+  return 'Критично';
+}
+
+function sanitizePdfFilename(name) {
+  return String(name)
+    .replace(/[^\w\u0400-\u04FF\s-]/gi, '')
+    .trim()
+    .replace(/\s+/g, '_') || 'bassein';
+}
+
+function handleExportPdf() {
+  const pool = getActivePool();
+  if (!pool) {
+    alert('Выберите бассейн.');
+    return;
+  }
+
+  if (typeof pdfMake === 'undefined') {
+    alert('Библиотека PDF не загрузилась. Обновите страницу.');
+    return;
+  }
+
+  const poolMeas = getPoolMeasurements(pool.id);
+  const poolChem = getPoolChemistry(pool.id);
+  const treatmentType = getPoolTreatment(pool);
+
+  if (poolMeas.length === 0 && poolChem.length === 0) {
+    alert('Нет данных для выгрузки. Добавьте измерения или записи о химии.');
+    return;
+  }
+
+  const sanitizerCol = getSanitizerLabel(treatmentType, true);
+  const generatedAt = formatReportDateTime(new Date().toISOString());
+  const poolInfo = [
+    `Объём: ${formatVolume(pool.volume)}`,
+    TREATMENT_LABELS[treatmentType],
+    `Измерений: ${poolMeas.length}`,
+    `Записей химии: ${poolChem.length}`
+  ];
+  if (pool.location?.address) poolInfo.push(`Адрес: ${pool.location.address}`);
+
+  const content = [
+    { text: 'Отчёт по бассейну', style: 'title' },
+    { text: pool.name, style: 'subtitle' },
+    {
+      text: `Дата формирования: ${generatedAt}${currentUser?.email ? `\nАккаунт: ${currentUser.email}` : ''}`,
+      style: 'meta',
+      margin: [0, 0, 0, 8]
+    },
+    { ul: poolInfo, style: 'meta', margin: [0, 0, 0, 18] },
+    { text: 'История измерений', style: 'section' }
+  ];
+
+  if (poolMeas.length === 0) {
+    content.push({ text: 'Нет записей.', style: 'empty', margin: [0, 0, 0, 16] });
+  } else {
+    content.push({
+      table: {
+        headerRows: 1,
+        widths: ['*', 'auto', 'auto', 'auto', 'auto'],
+        body: [
+          ['Дата', 'pH', sanitizerCol, 'Темп., °C', 'Статус'],
+          ...poolMeas.map(m => {
+            const status = getOverallStatus(m.ph, m.chlorine, m.temperature, treatmentType);
+            return [
+              formatReportDateTime(m.date),
+              String(m.ph),
+              String(m.chlorine),
+              String(m.temperature),
+              statusLabelForReport(status)
+            ];
+          })
+        ]
+      },
+      layout: {
+        hLineWidth: (i, node) => (i === 0 || i === 1 || i === node.table.body.length ? 1 : 0.5),
+        vLineWidth: () => 0,
+        hLineColor: () => '#c8dce8',
+        paddingLeft: () => 6,
+        paddingRight: () => 6,
+        paddingTop: () => 4,
+        paddingBottom: () => 4
+      },
+      margin: [0, 4, 0, 18]
+    });
+  }
+
+  content.push({ text: 'История химии и работ', style: 'section' });
+
+  if (poolChem.length === 0) {
+    content.push({ text: 'Нет записей.', style: 'empty' });
+  } else {
+    content.push({
+      table: {
+        headerRows: 1,
+        widths: ['*', '*', 'auto', '*'],
+        body: [
+          ['Дата', 'Химия / препарат', 'Кол-во', 'Комментарий (работы)'],
+          ...poolChem.map(c => [
+            formatReportDateTime(c.date),
+            c.chemical,
+            `${c.amount} ${c.unit}`,
+            c.comment || '—'
+          ])
+        ]
+      },
+      layout: {
+        hLineWidth: (i, node) => (i === 0 || i === 1 || i === node.table.body.length ? 1 : 0.5),
+        vLineWidth: () => 0,
+        hLineColor: () => '#c8dce8',
+        paddingLeft: () => 6,
+        paddingRight: () => 6,
+        paddingTop: () => 4,
+        paddingBottom: () => 4
+      },
+      margin: [0, 4, 0, 0]
+    });
+  }
+
+  const filename = `otchet_${sanitizePdfFilename(pool.name)}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+  pdfMake.createPdf({
+    pageSize: 'A4',
+    pageMargins: [40, 48, 40, 48],
+    content,
+    styles: {
+      title: { fontSize: 18, bold: true, color: '#0d4a6b' },
+      subtitle: { fontSize: 14, bold: true, margin: [0, 4, 0, 8] },
+      section: { fontSize: 12, bold: true, color: '#0d4a6b', margin: [0, 4, 0, 6] },
+      meta: { fontSize: 10, color: '#444444' },
+      empty: { fontSize: 10, color: '#666666', italics: true }
+    },
+    defaultStyle: { font: 'Roboto', fontSize: 9 }
+  }).download(filename);
+
+  showMessage(document.getElementById('selectorMessage'), 'PDF отчёт скачивается…');
+}
+
 function showMessage(el, text, type = 'success') {
   el.textContent = text;
   el.className = `message ${type}`;
@@ -1638,6 +1786,8 @@ function initEventListeners() {
       await handleDbError(err, 'clearMeasurements');
     }
   });
+
+  document.getElementById('exportPdfBtn').addEventListener('click', handleExportPdf);
 
   document.getElementById('geocodeBtn').addEventListener('click', async () => {
     const address = document.getElementById('poolAddress').value.trim();

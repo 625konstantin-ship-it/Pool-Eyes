@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Учёт параметров бассейна</title>
-  <link rel="stylesheet" href="styles.css?v=11">
+  <link rel="stylesheet" href="styles.css?v=12">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
@@ -147,6 +147,10 @@
               <option value="peroxide">На перекиси</option>
             </select>
           </div>
+        </div>
+        <div class="export-row">
+          <button type="button" id="exportPdfBtn" class="btn btn-secondary">Скачать PDF отчёт</button>
+          <p class="hint export-hint">История измерений и записи о химии / работах по выбранному бассейну.</p>
         </div>
       </section>
 
@@ -373,6 +377,8 @@
   <script src="supabase-db.js?v=10"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=10"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.min.js"></script>
+  <script src="app.js?v=11"></script>
 </body>
 </html>
