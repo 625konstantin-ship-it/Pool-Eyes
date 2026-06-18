@@ -527,6 +527,36 @@ td.comment-cell {
   display: none !important;
 }
 
+.pool-settings-view {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.pool-info-line {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #3d6b80;
+}
+
+.pool-info-label {
+  font-weight: 600;
+  color: #0d4a6b;
+}
+
+.pool-settings-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pool-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .pool-settings {
   display: flex;
   flex-direction: column;
@@ -567,7 +597,11 @@ td.comment-cell {
 }
 
 @media (max-width: 600px) {
-  .pool-reminder-options .btn {
+  .pool-edit-actions .btn {
+    width: 100%;
+  }
+
+  .pool-settings-view .btn {
     width: 100%;
   }
 }

@@ -73,6 +73,7 @@ let telegramSettings = null;
 let telegramConnectPending = false;
 let telegramPollTimer = null;
 let telegramPanelOpen = false;
+let poolEditMode = false;
 const MAP_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const MAP_TILE_FALLBACK_URL = 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png';
 const LEAFLET_ICON_BASE = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/';
@@ -564,6 +565,7 @@ async function setActivePool(poolId) {
   activePoolId = pool.id;
   saveActivePoolId();
   setMeasurementHistoryOpen(false);
+  setPoolEditMode(false);
 
   const select = document.getElementById('poolSelect');
   if (select && select.value !== pool.id) {
@@ -962,6 +964,60 @@ async function handleSaveTelegramSettings(e) {
   } catch (err) {
     showTelegramMessage(err.message || 'Ошибка сохранения', 'error');
   }
+}
+
+function syncPoolSettingsView(pool) {
+  const volEl = document.getElementById('poolVolumeDisplay');
+  const treatEl = document.getElementById('poolTreatmentDisplay');
+  if (!pool) return;
+  if (volEl) volEl.textContent = formatVolume(pool.volume);
+  if (treatEl) treatEl.textContent = TREATMENT_LABELS[getPoolTreatment(pool)];
+}
+
+function setPoolEditMode(edit) {
+  poolEditMode = edit;
+  document.getElementById('poolSettingsView')?.classList.toggle('hidden', edit);
+  document.getElementById('poolSettingsEdit')?.classList.toggle('hidden', !edit);
+
+  if (edit) {
+    const pool = getActivePool();
+    if (pool) {
+      syncVolumeSelect(pool.volume);
+      syncTreatmentSelect(getPoolTreatment(pool));
+    }
+  }
+}
+
+async function handleSavePoolSettings() {
+  const pool = getActivePool();
+  if (!pool) return;
+
+  const volume = getVolumeFromSelect(
+    document.getElementById('volumeSelect'),
+    document.getElementById('customVolume')
+  );
+  if (!volume) {
+    alert('Введите объём от 1000 литров.');
+    return;
+  }
+
+  pool.volume = volume;
+  pool.treatmentType = document.getElementById('treatmentSelect').value === 'peroxide' ? 'peroxide' : 'chlorine';
+
+  try {
+    await dbUpsertPool(currentUser.id, pool, selectedProblems[pool.id] || []);
+    setPoolEditMode(false);
+    renderPoolContent();
+    showMessage(document.getElementById('selectorMessage'), 'Настройки бассейна сохранены.');
+  } catch (err) {
+    await handleDbError(err, 'savePoolSettings');
+  }
+}
+
+function handleCancelPoolEdit() {
+  setPoolEditMode(false);
+  const pool = getActivePool();
+  if (pool) syncPoolSettingsView(pool);
 }
 
 function syncPoolReminderUI(pool) {
@@ -1633,6 +1689,7 @@ function renderPoolContent() {
 
   syncVolumeSelect(pool.volume);
   syncTreatmentSelect(treatmentType);
+  syncPoolSettingsView(pool);
   syncMeasurementLabels(treatmentType);
   syncPoolReminderUI(pool);
   renderLocationUI(pool);
@@ -1898,58 +1955,18 @@ function initEventListeners() {
     }
   });
 
-  document.getElementById('volumeSelect').addEventListener('change', async e => {
-    if (isUpdatingUI) return;
+  document.getElementById('volumeSelect').addEventListener('change', e => {
+    if (isUpdatingUI || !poolEditMode) return;
     const wrap = document.getElementById('customVolumeWrap');
     wrap.classList.toggle('hidden', e.target.value !== 'custom');
-    if (e.target.value !== 'custom') {
-      const pool = getActivePool();
-      if (pool) {
-        pool.volume = parseInt(e.target.value, 10);
-        try {
-          await dbUpsertPool(currentUser.id, pool, selectedProblems[pool.id] || []);
-          renderPoolContent();
-          showMessage(document.getElementById('selectorMessage'), 'Объём сохранён.');
-        } catch (err) {
-          await handleDbError(err, 'saveVolume');
-        }
-      }
-    } else {
+    if (e.target.value === 'custom') {
       document.getElementById('customVolume').focus();
     }
   });
 
-  document.getElementById('saveVolumeBtn').addEventListener('click', async () => {
-    const pool = getActivePool();
-    const custom = parseInt(document.getElementById('customVolume').value, 10);
-    if (!pool || !custom || custom < 1000) {
-      alert('Введите объём от 1000 литров.');
-      return;
-    }
-    pool.volume = custom;
-    try {
-      await dbUpsertPool(currentUser.id, pool, selectedProblems[pool.id] || []);
-      renderPoolContent();
-      showMessage(document.getElementById('selectorMessage'), 'Объём сохранён.');
-    } catch (err) {
-      await handleDbError(err, 'saveVolume');
-    }
-  });
-
-  document.getElementById('treatmentSelect').addEventListener('change', async e => {
-    if (isUpdatingUI) return;
-    const pool = getActivePool();
-    if (!pool) return;
-
-    pool.treatmentType = e.target.value === 'peroxide' ? 'peroxide' : 'chlorine';
-    try {
-      await dbUpsertPool(currentUser.id, pool, selectedProblems[pool.id] || []);
-      renderPoolContent();
-      showMessage(document.getElementById('selectorMessage'), `Обработка: ${TREATMENT_LABELS[pool.treatmentType]}`);
-    } catch (err) {
-      await handleDbError(err, 'saveTreatment');
-    }
-  });
+  document.getElementById('editPoolBtn')?.addEventListener('click', () => setPoolEditMode(true));
+  document.getElementById('savePoolSettingsBtn')?.addEventListener('click', handleSavePoolSettings);
+  document.getElementById('cancelPoolEditBtn')?.addEventListener('click', handleCancelPoolEdit);
 
   document.getElementById('photoPickBtn').addEventListener('click', () => {
     document.getElementById('photoInput').click();

@@ -13,7 +13,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=2">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=2">
   <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png?v=2">
-  <link rel="stylesheet" href="styles.css?v=16">
+  <link rel="stylesheet" href="styles.css?v=17">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
@@ -162,7 +162,12 @@
       <section class="card pool-info">
         <h2 id="activePoolName">—</h2>
         <p id="activePoolMeta" class="meta"></p>
-        <div class="pool-settings">
+        <div id="poolSettingsView" class="pool-settings-view">
+          <p class="pool-info-line"><span class="pool-info-label">Объём:</span> <span id="poolVolumeDisplay">—</span></p>
+          <p class="pool-info-line"><span class="pool-info-label">Обработка:</span> <span id="poolTreatmentDisplay">—</span></p>
+          <button type="button" id="editPoolBtn" class="btn btn-secondary btn-small">Изменить</button>
+        </div>
+        <div id="poolSettingsEdit" class="pool-settings pool-settings-edit hidden">
           <div class="volume-row">
             <label for="volumeSelect">Объём бассейна</label>
             <select id="volumeSelect">
@@ -174,7 +179,6 @@
             </select>
             <div id="customVolumeWrap" class="custom-volume hidden">
               <input type="number" id="customVolume" min="1000" max="500000" step="100" placeholder="Литры">
-              <button type="button" id="saveVolumeBtn" class="btn btn-secondary">Сохранить объём</button>
             </div>
           </div>
           <div class="volume-row">
@@ -183,6 +187,10 @@
               <option value="chlorine">На хлоре</option>
               <option value="peroxide">На перекиси</option>
             </select>
+          </div>
+          <div class="pool-edit-actions">
+            <button type="button" id="savePoolSettingsBtn" class="btn btn-primary">Сохранить</button>
+            <button type="button" id="cancelPoolEditBtn" class="btn btn-secondary">Отмена</button>
           </div>
         </div>
         <div id="poolReminderBlock" class="pool-reminder-block hidden">
@@ -438,6 +446,6 @@
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.min.js"></script>
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=17"></script>
 </body>
 </html>
