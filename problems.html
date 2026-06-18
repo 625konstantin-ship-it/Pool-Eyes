@@ -11,67 +11,71 @@
   <link rel="manifest" href="manifest.webmanifest?v=2">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=2">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=2">
-  <link rel="stylesheet" href="styles.css?v=23">
+  <link rel="stylesheet" href="styles.css?v=31">
 </head>
-<body>
+<body data-page-title-key="problems.pageTitle">
   <div id="problemsLoading" class="problems-loading">
-    <p>Загрузка...</p>
+    <p data-i18n="problems.loading">Загрузка...</p>
   </div>
 
   <div id="problemsApp" class="container hidden">
     <header class="app-header problems-page-header">
       <div class="header-row">
+        <div class="lang-switcher header-lang-switcher" role="group" aria-label="Language">
+          <button type="button" class="lang-btn active" data-lang="ru" aria-pressed="true">RU</button>
+          <button type="button" class="lang-btn" data-lang="en" aria-pressed="false">EN</button>
+        </div>
         <div class="header-title">
-          <a href="index.html" class="back-link">← Назад</a>
-          <h1>Проблемы с водой</h1>
-          <p class="subtitle">Выберите, что наблюдаете — получите рекомендации по устранению</p>
+          <a href="index.html" class="back-link" data-i18n="problems.back">← Назад</a>
+          <h1 data-i18n="problems.title">Проблемы с водой</h1>
+          <p class="subtitle" data-i18n="problems.subtitle">Выберите, что наблюдаете — получите рекомендации по устранению</p>
         </div>
       </div>
     </header>
 
     <section class="card pool-selector">
-      <h2>Бассейн</h2>
+      <h2 data-i18n="problems.pool">Бассейн</h2>
       <div class="selector-row">
-        <select id="poolSelect" aria-label="Сохранённые бассейны"></select>
+        <select id="poolSelect" data-i18n-aria-label="pool.selectAria" aria-label="Сохранённые бассейны"></select>
       </div>
       <p id="problemsPoolMeta" class="meta"></p>
-      <p id="noPoolHint" class="no-pool hidden">Нет бассейнов. Добавьте бассейн на главной странице.</p>
+      <p id="noPoolHint" class="no-pool hidden" data-i18n="problems.noPools">Нет бассейнов. Добавьте бассейн на главной странице.</p>
     </section>
 
     <div id="problemsContent" class="hidden">
       <section class="card ai-assistant-card" id="aiAssistantCard">
-        <h2>Режим помощи</h2>
-        <p id="aiModeStatus" class="ai-mode-status manual">Ручной режим — готовые рекомендации по выбранным проблемам</p>
+        <h2 data-i18n="problems.helpMode">Режим помощи</h2>
+        <p id="aiModeStatus" class="ai-mode-status manual" data-i18n="problems.manualStatus">Ручной режим — готовые рекомендации по выбранным проблемам</p>
         <div class="ai-mode-options">
           <label class="ai-mode-option selected" id="manualModeOption">
             <input type="radio" name="helpMode" value="manual" checked>
             <span class="ai-mode-label">
-              <strong>Ручной</strong>
-              <span class="ai-mode-desc">Справочник рекомендаций</span>
+              <strong data-i18n="problems.manual">Ручной</strong>
+              <span class="ai-mode-desc" data-i18n="problems.manualDesc">Справочник рекомендаций</span>
             </span>
           </label>
           <label class="ai-mode-option disabled" id="aiModeOption">
             <input type="radio" name="helpMode" value="ai" disabled>
             <span class="ai-mode-label">
-              <strong>AI-асистент</strong>
-              <span class="ai-mode-desc">Скоро — персональные советы</span>
+              <strong data-i18n="problems.ai">AI-асистент</strong>
+              <span class="ai-mode-desc" data-i18n="problems.aiDesc">Скоро — персональные советы</span>
             </span>
           </label>
         </div>
         <div class="ai-connect-block">
-          <button type="button" id="connectAiBtn" class="btn btn-secondary" disabled title="Функция появится позже">Подключить AI-асистента</button>
-          <p class="hint ai-connect-hint">AI пока недоступен. Сейчас работает только ручной режим с проверенными рекомендациями.</p>
+          <button type="button" id="connectAiBtn" class="btn btn-secondary" disabled data-i18n-title="problems.aiSoon" title="Функция появится позже" data-i18n="problems.connectAi">Подключить AI-асистента</button>
+          <p class="hint ai-connect-hint" data-i18n="problems.aiHint">AI пока недоступен. Сейчас работает только ручной режим с проверенными рекомендациями.</p>
         </div>
       </section>
 
       <section class="card">
-        <h2>Что наблюдаете?</h2>
-        <p class="hint">Можно выбрать несколько проблем — советы появятся ниже.</p>
+        <h2 data-i18n="problems.whatSee">Что наблюдаете?</h2>
+        <p class="hint" data-i18n="problems.whatSeeHint">Можно выбрать несколько проблем — советы появятся ниже.</p>
         <div class="problems-grid" id="problemsGrid"></div>
       </section>
 
       <section class="card">
-        <h2>Рекомендации</h2>
+        <h2 data-i18n="problems.recommendations">Рекомендации</h2>
         <div id="problemRecommendations" class="recommendations"></div>
       </section>
     </div>
@@ -79,8 +83,13 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="config.js?v=2"></script>
-  <script src="supabase-db.js?v=12"></script>
-  <script src="pool-problems.js?v=1"></script>
-  <script src="problems.js?v=1"></script>
+  <script src="i18n/ru.js?v=1"></script>
+  <script src="i18n/en.js?v=1"></script>
+  <script src="i18n/pool-problems-ru.js?v=1"></script>
+  <script src="i18n/pool-problems-en.js?v=1"></script>
+  <script src="i18n/i18n.js?v=1"></script>
+  <script src="supabase-db.js?v=13"></script>
+  <script src="pool-problems.js?v=2"></script>
+  <script src="problems.js?v=2"></script>
 </body>
 </html>

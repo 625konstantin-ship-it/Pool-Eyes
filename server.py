@@ -137,6 +137,13 @@ class PoolHandler(SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):
         print(f'[{self.log_date_time_string()}] {fmt % args}')
 
+    def end_headers(self):
+        path = urlparse(self.path).path
+        if path.endswith(('.html', '.js', '.css', '.webmanifest')) or path in ('/', ''):
+            self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
+            self.send_header('Pragma', 'no-cache')
+        super().end_headers()
+
     def do_GET(self):
         parsed = urlparse(self.path)
         if parsed.path == '/api/health':

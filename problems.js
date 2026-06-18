@@ -39,7 +39,7 @@ function renderAiAssistantUI() {
   const aiRadio = aiOption?.querySelector('input');
 
   if (isAiAssistantConfigured()) {
-    statusEl.textContent = 'AI-асистент доступен — можно переключить режим';
+    statusEl.textContent = t('problems.aiReady');
     statusEl.className = 'ai-mode-status ai-ready';
     connectBtn.disabled = false;
     connectBtn.title = '';
@@ -48,10 +48,10 @@ function renderAiAssistantUI() {
     return;
   }
 
-  statusEl.textContent = 'Ручной режим — готовые рекомендации по выбранным проблемам';
+  statusEl.textContent = t('problems.manualStatus');
   statusEl.className = 'ai-mode-status manual';
   connectBtn.disabled = true;
-  connectBtn.title = 'Функция появится позже';
+  connectBtn.title = t('problems.aiSoon');
   aiOption?.classList.add('disabled');
   if (aiRadio) {
     aiRadio.disabled = true;
@@ -100,8 +100,9 @@ function renderProblemsGrid() {
   if (!grid || !activePoolId) return;
 
   const poolProblems = selectedProblems[activePoolId] || [];
+  const problems = getPoolProblems();
 
-  grid.innerHTML = POOL_PROBLEMS.map(p => `
+  grid.innerHTML = problems.map(p => `
     <label class="problem-item ${poolProblems.includes(p.id) ? 'selected' : ''}">
       <input type="checkbox" value="${p.id}" ${poolProblems.includes(p.id) ? 'checked' : ''}>
       <div>
@@ -125,7 +126,7 @@ function renderProblemRecommendations(problemIds) {
   if (!container) return;
 
   if (!problemIds || problemIds.length === 0) {
-    container.innerHTML = '<div class="rec-item info"><strong>Выберите проблемы</strong>Отметьте ситуации, которые видите в бассейне.</div>';
+    container.innerHTML = `<div class="rec-item info"><strong>${escapeHtml(t('problems.selectProblems'))}</strong>${escapeHtml(t('problems.selectHint'))}</div>`;
     return;
   }
 
@@ -140,11 +141,16 @@ function updatePoolProblems() {
   if (pool && currentUser) {
     dbUpsertPool(currentUser.id, pool, checked).catch(err => {
       console.error('saveProblems', err);
-      alert('Не удалось сохранить выбор проблем. Проверьте подключение.');
+      alert(t('problems.saveFailed'));
     });
   }
 
   renderProblemRecommendations(checked);
+}
+
+function formatProblemsPoolVolume(liters) {
+  const formatted = Number(liters).toLocaleString(getLocale());
+  return getLang() === 'en' ? `${formatted} L` : `${formatted} л`;
 }
 
 function renderProblemsContent() {
@@ -164,7 +170,7 @@ function renderProblemsContent() {
   noHint?.classList.add('hidden');
 
   if (meta) {
-    meta.textContent = `${pool.name} · ${Number(pool.volume).toLocaleString('ru-RU')} л`;
+    meta.textContent = `${pool.name} · ${formatProblemsPoolVolume(pool.volume)}`;
   }
 
   renderProblemsGrid();
@@ -197,6 +203,12 @@ function redirectToLogin() {
   window.location.href = 'index.html';
 }
 
+function handleProblemsLanguageChange() {
+  applyTranslations();
+  renderAiAssistantUI();
+  renderProblemsContent();
+}
+
 function initEventListeners() {
   document.getElementById('poolSelect')?.addEventListener('change', e => {
     if (isUpdatingUI) return;
@@ -205,7 +217,7 @@ function initEventListeners() {
 
   document.getElementById('connectAiBtn')?.addEventListener('click', () => {
     if (!isAiAssistantConfigured()) return;
-    alert('Подключение AI-асистента будет добавлено в следующем обновлении.');
+    alert(t('problems.aiConnectSoon'));
   });
 
   document.querySelectorAll('input[name="helpMode"]').forEach(radio => {
@@ -214,6 +226,8 @@ function initEventListeners() {
       document.getElementById('aiModeOption')?.classList.toggle('selected', radio.value === 'ai');
     });
   });
+
+  window.addEventListener('languagechange', handleProblemsLanguageChange);
 }
 
 async function startProblemsPage() {
@@ -231,8 +245,10 @@ async function startProblemsPage() {
 }
 
 async function init() {
+  initI18n();
+
   if (!initSupabaseClient()) {
-    alert('Настройте Supabase в файле config.js');
+    alert(t('auth.configError'));
     redirectToLogin();
     return;
   }
@@ -252,7 +268,7 @@ async function init() {
     await startProblemsPage();
   } catch (err) {
     console.error(err);
-    alert('Не удалось загрузить данные. Попробуйте обновить страницу.');
+    alert(t('problems.loadFailed'));
     redirectToLogin();
   }
 }
