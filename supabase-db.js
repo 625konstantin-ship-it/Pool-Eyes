@@ -62,6 +62,7 @@ function mapChemistryRow(row) {
 }
 
 async function authSignUp(email, password, displayName) {
+  if (!sb) return { ok: false, error: 'Supabase не подключён. Обновите страницу.' };
   const { data, error } = await sb.auth.signUp({
     email: email.trim().toLowerCase(),
     password,
@@ -81,6 +82,7 @@ async function authSignUp(email, password, displayName) {
 }
 
 async function authSignIn(email, password) {
+  if (!sb) return { ok: false, error: 'Supabase не подключён. Обновите страницу.' };
   const { data, error } = await sb.auth.signInWithPassword({
     email: email.trim().toLowerCase(),
     password
@@ -114,6 +116,9 @@ function translateAuthError(msg) {
   if (msg.includes('User already registered')) return 'Этот email уже зарегистрирован.';
   if (msg.includes('Email not confirmed')) return 'Подтвердите email — проверьте почту.';
   if (msg.includes('Password should be at least')) return 'Пароль — минимум 6 символов.';
+  if (msg.includes('invalid') && msg.toLowerCase().includes('email')) return 'Некорректный email. Используйте формат name@gmail.com';
+  if (msg.includes('rate limit')) return 'Слишком много попыток. Подождите 1–2 минуты и попробуйте снова.';
+  if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) return 'Нет связи с сервером. Проверьте интернет.';
   return msg;
 }
 

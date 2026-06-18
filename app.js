@@ -229,65 +229,111 @@ function showAuthMessage(id, text, type = 'error') {
   el.textContent = text;
   el.className = `message ${type}`;
   el.hidden = false;
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function setFormLoading(form, loading, loadingText = 'Подождите...') {
+  const btn = form?.querySelector('button[type="submit"]');
+  if (!btn) return;
+  if (loading) {
+    if (!btn.dataset.originalText) btn.dataset.originalText = btn.textContent;
+    btn.textContent = loadingText;
+    btn.disabled = true;
+  } else {
+    btn.textContent = btn.dataset.originalText || btn.textContent;
+    btn.disabled = false;
+  }
 }
 
 async function handleLogin(e) {
   e.preventDefault();
   hideAuthMessages(['loginError']);
+  const form = e.target;
   const email = document.getElementById('loginEmail').value;
   const password = document.getElementById('loginPassword').value;
 
-  const result = await authSignIn(email, password);
-  if (!result.ok) {
-    showAuthMessage('loginError', result.error);
-    return;
+  setFormLoading(form, true, 'Вход...');
+  try {
+    const result = await authSignIn(email, password);
+    if (!result.ok) {
+      showAuthMessage('loginError', result.error);
+      return;
+    }
+    currentUser = result.user;
+    await startApp();
+  } catch (err) {
+    showAuthMessage('loginError', translateAuthError(err.message || 'Ошибка входа'));
+  } finally {
+    setFormLoading(form, false);
   }
-
-  currentUser = result.user;
-  await startApp();
 }
 
 async function handleRegister(e) {
   e.preventDefault();
   hideAuthMessages(['registerError', 'registerSuccess']);
 
+  const form = e.target;
   const displayName = document.getElementById('registerDisplayName').value;
-  const email = document.getElementById('registerEmail').value;
+  const email = document.getElementById('registerEmail').value.trim();
   const password = document.getElementById('registerPassword').value;
   const confirm = document.getElementById('registerPasswordConfirm').value;
+
+  if (!email.includes('@') || !email.includes('.')) {
+    showAuthMessage('registerError', 'Введите корректный email, например name@gmail.com');
+    return;
+  }
 
   if (password !== confirm) {
     showAuthMessage('registerError', 'Пароли не совпадают.');
     return;
   }
 
-  const result = await authSignUp(email, password, displayName);
-  if (!result.ok) {
-    showAuthMessage('registerError', result.error);
-    return;
-  }
+  setFormLoading(form, true, 'Регистрация...');
+  try {
+    const result = await authSignUp(email, password, displayName);
+    if (!result.ok) {
+      showAuthMessage('registerError', result.error);
+      return;
+    }
 
-  if (result.needsConfirmation) {
-    showAuthMessage('registerSuccess', result.message, 'success');
-    return;
-  }
+    if (result.needsConfirmation) {
+      showAuthMessage(
+        'registerSuccess',
+        '✅ Аккаунт создан! Откройте почту (и папку «Спам»), перейдите по ссылке из письма, затем вой вой «Вход».',
+        'success'
+      );
+      return;
+    }
 
-  currentUser = result.user;
-  await startApp();
+    currentUser = result.user;
+    await startApp();
+  } catch (err) {
+    showAuthMessage('registerError', translateAuthError(err.message || 'Ошибка регистрации'));
+  } finally {
+    setFormLoading(form, false);
+  }
 }
 
 async function handleForgot(e) {
   e.preventDefault();
   hideAuthMessages(['forgotError', 'forgotSuccess']);
 
-  const email = document.getElementById('forgotEmail').value;
-  const result = await authResetPassword(email);
-  if (!result.ok) {
-    showAuthMessage('forgotError', result.error);
-    return;
-  }
+  const form = e.target;
+  const email = document.getElementById('forgotEmail').value.trim();
 
-  showAuthMessage('forgotSuccess', result.message, 'success');
+  setFormLoading(form, true, 'Отправка...');
+  try {
+    const result = await authResetPassword(email);
+    if (!result.ok) {
+      showAuthMessage('forgotError', result.error);
+      return;
+    }
+    showAuthMessage('forgotSuccess', result.message, 'success');
+  } catch (err) {
+    showAuthMessage('forgotError', translateAuthError(err.message || 'Ошибка отправки'));
+  } finally {
+    setFormLoading(form, false);
+  }
 }
 
 async function handleLogout() {
@@ -1336,13 +1382,13 @@ function initEventListeners() {
 }
 
 async function init() {
-  initAuthListeners();
-  initEventListeners();
-
   if (!initSupabaseClient()) {
     showConfigError();
     return;
   }
+
+  initAuthListeners();
+  initEventListeners();
 
   const session = await authGetSession();
   if (session?.user) {
