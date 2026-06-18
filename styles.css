@@ -83,6 +83,10 @@ header {
   align-items: center;
   justify-content: center;
   padding: 0;
+  font: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
   transition: background 0.15s, border-color 0.15s;
 }
 
@@ -126,11 +130,15 @@ header {
   text-align: left;
   padding: 11px 14px;
   border: none;
+  border-radius: 0;
   background: none;
   font: inherit;
   font-size: 0.92rem;
   color: #0d4a6b;
   cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .user-menu-item:hover {
@@ -424,6 +432,10 @@ td.comment-cell {
   font-size: 0.95rem;
   cursor: pointer;
   font-weight: 600;
+  font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
   transition: background 0.15s, opacity 0.15s;
   max-width: 100%;
 }
