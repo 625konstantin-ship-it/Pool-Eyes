@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Учёт параметров бассейна</title>
-  <link rel="stylesheet" href="styles.css?v=4">
+  <link rel="stylesheet" href="styles.css?v=6">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
@@ -74,15 +74,15 @@
   </div>
 
   <div id="appScreen" class="container hidden">
-    <header>
+    <header class="app-header">
       <div class="header-row">
-        <div>
+        <div class="header-title">
           <h1>Учёт параметров бассейна</h1>
           <p class="subtitle">Контроль pH, хлора, температуры и состояния воды</p>
         </div>
         <div class="user-bar">
           <span id="currentUserLabel" class="user-label"></span>
-          <button type="button" id="logoutBtn" class="btn btn-secondary btn-small">Выйти</button>
+          <button type="button" id="logoutBtn" class="btn btn-secondary btn-small btn-logout">Выйти</button>
         </div>
       </div>
     </header>
@@ -165,6 +165,40 @@
           </div>
           <button type="submit" class="btn btn-primary">Сохранить измерение</button>
         </form>
+
+        <button type="button" id="toggleMeasurementHistoryBtn" class="btn btn-secondary btn-full history-toggle-btn">
+          История и графики
+        </button>
+
+        <div id="measurementHistoryPanel" class="measurement-history-panel hidden">
+          <h3 class="subsection-title">Графики</h3>
+          <p id="chartsHint" class="hint">Добавьте несколько измерений, чтобы увидеть динамику.</p>
+          <div class="charts">
+            <div class="chart-wrap"><canvas id="phChart"></canvas></div>
+            <div class="chart-wrap"><canvas id="chlorineChart"></canvas></div>
+            <div class="chart-wrap"><canvas id="tempChart"></canvas></div>
+          </div>
+
+          <div class="history-header">
+            <h3 class="subsection-title">История измерений</h3>
+            <button type="button" id="clearHistoryBtn" class="btn btn-danger btn-small">Очистить историю</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>pH</th>
+                  <th id="historyChlorineHeader">Хлор</th>
+                  <th>Темп.</th>
+                  <th>Статус</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody"></tbody>
+            </table>
+          </div>
+          <p id="emptyHistory" class="empty">Пока нет измерений для этого бассейна.</p>
+        </div>
       </section>
 
       <section class="card">
@@ -250,38 +284,6 @@
         <h2>Рекомендации по параметрам</h2>
         <div id="paramRecommendations" class="recommendations"></div>
       </section>
-
-      <section class="card">
-        <h2>Графики</h2>
-        <p class="hint">Добавьте несколько измерений, чтобы увидеть динамику.</p>
-        <div class="charts">
-          <div class="chart-wrap"><canvas id="phChart"></canvas></div>
-          <div class="chart-wrap"><canvas id="chlorineChart"></canvas></div>
-          <div class="chart-wrap"><canvas id="tempChart"></canvas></div>
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="history-header">
-          <h2>История измерений</h2>
-          <button type="button" id="clearHistoryBtn" class="btn btn-danger btn-small">Очистить историю</button>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Дата</th>
-                <th>pH</th>
-                <th id="historyChlorineHeader">Хлор</th>
-                <th>Темп.</th>
-                <th>Статус</th>
-              </tr>
-            </thead>
-            <tbody id="historyBody"></tbody>
-          </table>
-        </div>
-        <p id="emptyHistory" class="empty">Пока нет измерений для этого бассейна.</p>
-      </section>
     </div>
 
     <p id="noPoolHint" class="no-pool hidden">Выберите бассейн из списка или добавьте новый.</p>
@@ -331,6 +333,6 @@
   <script src="supabase-db.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>

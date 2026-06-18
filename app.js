@@ -66,6 +66,7 @@ let poolMap = null;
 let poolMarker = null;
 let lastMapPoolId = null;
 let mapInitRetries = 0;
+let measurementHistoryOpen = false;
 const MAP_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const MAP_TILE_FALLBACK_URL = 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png';
 const LEAFLET_ICON_BASE = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/';
@@ -197,11 +198,19 @@ function normalizeStoredData() {
     }));
 }
 
+function updateUserLabel() {
+  const el = document.getElementById('currentUserLabel');
+  if (!el || !currentUser) return;
+  const compact = window.matchMedia('(max-width: 768px)').matches;
+  el.textContent = compact
+    ? currentUser.email
+    : `${currentUser.displayLogin || currentUser.email} · ${currentUser.email}`;
+}
+
 function showAppScreen() {
   document.getElementById('authScreen').classList.add('hidden');
   document.getElementById('appScreen').classList.remove('hidden');
-  document.getElementById('currentUserLabel').textContent =
-    (currentUser.displayLogin || currentUser.email) + ` · ${currentUser.email}`;
+  updateUserLabel();
 }
 
 function switchAuthTab(tab) {
@@ -346,6 +355,7 @@ async function handleLogout() {
   measurements = [];
   chemistryLog = [];
   selectedProblems = {};
+  measurementHistoryOpen = false;
   destroyCharts();
   destroyPoolMap(true);
   showAuthScreen();
@@ -360,6 +370,38 @@ function destroyCharts() {
       charts[key] = null;
     }
   });
+}
+
+function refreshChartsSize() {
+  Object.values(charts).forEach(chart => chart?.resize());
+}
+
+function setMeasurementHistoryOpen(open) {
+  measurementHistoryOpen = open;
+  const panel = document.getElementById('measurementHistoryPanel');
+  const btn = document.getElementById('toggleMeasurementHistoryBtn');
+  if (!panel || !btn) return;
+
+  panel.classList.toggle('hidden', !open);
+  btn.textContent = open ? 'Скрыть историю и графики' : 'История и графики';
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+
+  if (open) {
+    const pool = getActivePool();
+    if (pool) {
+      const poolMeas = getPoolMeasurements(pool.id);
+      const treatmentType = getPoolTreatment(pool);
+      renderCharts(poolMeas, treatmentType);
+      setTimeout(refreshChartsSize, 50);
+      setTimeout(refreshChartsSize, 300);
+    }
+  } else {
+    destroyCharts();
+  }
+}
+
+function toggleMeasurementHistory() {
+  setMeasurementHistoryOpen(!measurementHistoryOpen);
 }
 
 async function startApp() {
@@ -384,6 +426,7 @@ async function setActivePool(poolId) {
   await saveCurrentPoolProblems();
   activePoolId = pool.id;
   saveActivePoolId();
+  setMeasurementHistoryOpen(false);
 
   const select = document.getElementById('poolSelect');
   if (select && select.value !== pool.id) {
@@ -967,7 +1010,15 @@ function renderPoolContent() {
   }
 
   renderHistory(poolMeas, treatmentType);
-  renderCharts(poolMeas, treatmentType);
+  if (measurementHistoryOpen) {
+    renderCharts(poolMeas, treatmentType);
+    setTimeout(refreshChartsSize, 50);
+  }
+
+  const chartsHint = document.getElementById('chartsHint');
+  if (chartsHint) {
+    chartsHint.hidden = poolMeas.length > 0;
+  }
 }
 
 function renderHistory(poolMeas, treatmentType) {
@@ -1242,6 +1293,8 @@ function initEventListeners() {
     }
   });
 
+  document.getElementById('toggleMeasurementHistoryBtn').addEventListener('click', toggleMeasurementHistory);
+
   document.getElementById('measurementForm').addEventListener('submit', async e => {
     e.preventDefault();
     const pool = getActivePool();
@@ -1400,6 +1453,8 @@ function initEventListeners() {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && poolMap) refreshMapSize();
   });
+
+  window.addEventListener('resize', updateUserLabel);
 }
 
 async function init() {
