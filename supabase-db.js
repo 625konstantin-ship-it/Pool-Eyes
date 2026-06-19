@@ -83,7 +83,8 @@ async function authSignUp(email, password, displayName) {
     email: email.trim().toLowerCase(),
     password,
     options: {
-      data: { display_name: displayName?.trim() || email.trim() }
+      data: { display_name: displayName?.trim() || email.trim() },
+      emailRedirectTo: getAuthRedirectUrl()
     }
   });
   if (error) return { ok: false, error: translateAuthError(error.message) };
@@ -113,7 +114,7 @@ async function authSignOut() {
 
 async function authResetPassword(email) {
   const { error } = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-    redirectTo: getPasswordResetRedirectUrl()
+    redirectTo: getAuthRedirectUrl()
   });
   if (error) return { ok: false, error: translateAuthError(error.message) };
   return {
@@ -129,7 +130,12 @@ async function authUpdatePassword(password) {
   return { ok: true, user: data.user };
 }
 
-function getPasswordResetRedirectUrl() {
+function getAuthRedirectUrl() {
+  if (typeof APP_URL === 'string' && APP_URL.trim().startsWith('http')) {
+    let base = APP_URL.trim();
+    if (!base.endsWith('/')) base += '/';
+    return base;
+  }
   let path = window.location.pathname;
   if (path.endsWith('/index.html')) {
     path = path.slice(0, -'index.html'.length);
@@ -387,9 +393,3 @@ async function dbCreateTelegramLinkToken(userId) {
   return { token, settings: mapTelegramSettings(data) };
 }
 
-async function dbSendTestTelegramReminder() {
-  const { data, error } = await sb.functions.invoke('send-test-reminder', { body: {} });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
-  return data;
-}

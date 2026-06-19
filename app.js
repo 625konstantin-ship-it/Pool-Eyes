@@ -310,6 +310,31 @@ function isPasswordRecoveryUrl() {
   return window.location.hash.includes('type=recovery');
 }
 
+function isEmailConfirmationUrl() {
+  const hash = window.location.hash;
+  return hash.includes('type=signup') || hash.includes('type=email');
+}
+
+function hasAuthCallbackInUrl() {
+  return isPasswordRecoveryUrl()
+    || isEmailConfirmationUrl()
+    || window.location.search.includes('code=')
+    || window.location.hash.includes('access_token');
+}
+
+function clearAuthCallbackUrl() {
+  let search = window.location.search;
+  if (search.includes('code=')) {
+    const params = new URLSearchParams(search);
+    params.delete('code');
+    search = params.toString() ? `?${params.toString()}` : '';
+  }
+  const path = window.location.pathname;
+  if (window.location.hash || search !== window.location.search) {
+    window.history.replaceState(null, '', path + search);
+  }
+}
+
 function showAppScreen() {
   document.getElementById('authScreen').classList.add('hidden');
   document.getElementById('appScreen').classList.remove('hidden');
@@ -419,11 +444,13 @@ async function handleRegister(e) {
         t('auth.registerSuccess'),
         'success'
       );
+      switchAuthTab('login');
       return;
     }
 
     currentUser = result.user;
     await startApp();
+    showMessage(document.getElementById('selectorMessage'), t('auth.registerSuccessInstant'));
   } catch (err) {
     showAuthMessage('registerError', translateAuthError(err.message || t('auth.error.register')));
   } finally {
@@ -2544,6 +2571,17 @@ async function init() {
 
   if (pendingPasswordRecovery || isPasswordRecoveryUrl()) {
     showPasswordResetScreen();
+    return;
+  }
+
+  if (hasAuthCallbackInUrl() && session?.user) {
+    const wasEmailConfirm = isEmailConfirmationUrl();
+    clearAuthCallbackUrl();
+    currentUser = mapUser(session);
+    await startApp();
+    if (wasEmailConfirm) {
+      showMessage(document.getElementById('selectorMessage'), t('auth.emailConfirmed'));
+    }
     return;
   }
 
