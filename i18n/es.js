@@ -69,6 +69,8 @@ const I18N_ES = {
 
   'pool.select': 'Seleccionar piscina',
   'pool.selectAria': 'Piscinas guardadas',
+  'pool.searchPlaceholder': 'Buscar piscina...',
+  'pool.searchEmpty': 'Sin resultados',
   'pool.add': '+ Añadir piscina',
   'pool.delete': 'Eliminar',
   'pool.noHint': 'Seleccione una piscina de la lista o añada una nueva.',

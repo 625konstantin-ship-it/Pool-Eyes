@@ -69,6 +69,8 @@ const I18N_RU = {
 
   'pool.select': 'Выберите бассейн',
   'pool.selectAria': 'Сохранённые бассейны',
+  'pool.searchPlaceholder': 'Поиск бассейна...',
+  'pool.searchEmpty': 'Ничего не найдено',
   'pool.add': '+ Добавить бассейн',
   'pool.delete': 'Удалить',
   'pool.noHint': 'Выберите бассейн из списка или добавьте новый.',

@@ -559,12 +559,7 @@ async function setActivePool(poolId) {
   clearSavedChemistryPhotoPreview();
   clearChemistryBatch();
 
-  const select = document.getElementById('poolSelect');
-  if (select && select.value !== pool.id) {
-    isUpdatingUI = true;
-    select.value = pool.id;
-    isUpdatingUI = false;
-  }
+  PoolSelectUI.setValue(pool.id);
 
   renderPoolContent();
   return true;
@@ -1516,24 +1511,22 @@ function renderRecommendations(container, recs) {
 }
 
 function renderPoolSelect() {
-  const select = document.getElementById('poolSelect');
-  if (!select) return;
+  if (!document.getElementById('poolSelect')) return;
 
   isUpdatingUI = true;
-  select.innerHTML = poolList
-    .map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`)
-    .join('');
 
   if (activePoolId && poolList.some(p => p.id === activePoolId)) {
-    select.value = activePoolId;
+    // keep current selection
   } else if (poolList.length > 0) {
     activePoolId = poolList[0].id;
-    select.value = activePoolId;
     saveActivePoolId();
   }
 
+  PoolSelectUI.render(poolList, activePoolId);
+
   isUpdatingUI = false;
-  document.getElementById('deletePoolBtn').disabled = poolList.length <= 1;
+  const deleteBtn = document.getElementById('deletePoolBtn');
+  if (deleteBtn) deleteBtn.disabled = poolList.length <= 1;
 }
 
 function syncVolumeSelect(volume) {
@@ -2130,15 +2123,9 @@ function initAuthListeners() {
 }
 
 function initEventListeners() {
-  document.getElementById('poolSelect').addEventListener('change', async e => {
+  PoolSelectUI.init(async poolId => {
     if (isUpdatingUI) return;
-    const poolId = e.target.value;
-    if (!poolId) {
-      isUpdatingUI = true;
-      e.target.value = activePoolId;
-      isUpdatingUI = false;
-      return;
-    }
+    if (!poolId) return;
     if (await setActivePool(poolId)) {
       showMessage(document.getElementById('selectorMessage'), t('pool.selected', { name: getActivePool().name }));
     }

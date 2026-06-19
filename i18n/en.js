@@ -69,6 +69,8 @@ const I18N_EN = {
 
   'pool.select': 'Select pool',
   'pool.selectAria': 'Saved pools',
+  'pool.searchPlaceholder': 'Search pool...',
+  'pool.searchEmpty': 'No results',
   'pool.add': '+ Add pool',
   'pool.delete': 'Delete',
   'pool.noHint': 'Select a pool from the list or add a new one.',

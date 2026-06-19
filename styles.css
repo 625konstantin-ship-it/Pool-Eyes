@@ -348,6 +348,124 @@ header {
   width: 100%;
 }
 
+.pool-search-select {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  z-index: 25;
+}
+
+.pool-search-select-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #b8d4e3;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: #f8fcff;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  touch-action: manipulation;
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pool-search-select-btn:hover,
+.pool-search-select-btn[aria-expanded="true"] {
+  border-color: #1a8fc7;
+  background: #eef8ff;
+}
+
+.pool-search-select-current {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pool-search-select-chevron {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.pool-search-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #d8eaf4;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(13, 74, 107, 0.15);
+  max-height: min(280px, 50vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.pool-search-select-search {
+  flex-shrink: 0;
+  border: none;
+  border-bottom: 1px solid #e8f2f8;
+  border-radius: 8px 8px 0 0;
+  background: #fff;
+}
+
+.pool-search-select-search:focus {
+  outline: none;
+  border-bottom-color: #1a8fc7;
+  box-shadow: none;
+}
+
+.pool-search-select-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  flex: 1;
+  max-height: 220px;
+}
+
+.pool-search-select-option {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  color: #0d4a6b;
+}
+
+.pool-search-select-option:hover,
+.pool-search-select-option:focus {
+  background: #e0f4ff;
+  outline: none;
+}
+
+.pool-search-select-option.active {
+  background: #cce8f8;
+  font-weight: 600;
+}
+
+.pool-search-select-empty {
+  padding: 12px;
+  margin: 0;
+  text-align: center;
+  color: #6b8fa3;
+  font-size: 0.9rem;
+}
+
 select, input[type="number"], input[type="text"], input[type="email"], input[type="password"], textarea {
   padding: 10px 12px;
   border: 1px solid #b8d4e3;
@@ -1547,6 +1665,7 @@ th {
   }
 
   .selector-row select,
+  .selector-row .pool-search-select,
   .selector-row .btn {
     width: 100%;
   }
