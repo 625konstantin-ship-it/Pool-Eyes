@@ -300,6 +300,11 @@ header {
   }
 }
 
+.card.pool-selector {
+  overflow: visible;
+  z-index: 20;
+}
+
 .card {
   background: #fff;
   border-radius: 12px;
@@ -404,18 +409,21 @@ header {
   border: 1px solid #d8eaf4;
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(13, 74, 107, 0.15);
-  max-height: min(280px, 50vh);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  z-index: 100;
 }
 
 .pool-search-select-search {
-  flex-shrink: 0;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
   border: none;
   border-bottom: 1px solid #e8f2f8;
   border-radius: 8px 8px 0 0;
   background: #fff;
+  font-size: 1rem;
+  font-family: inherit;
+  color: inherit;
 }
 
 .pool-search-select-search:focus {
@@ -429,8 +437,7 @@ header {
   margin: 0;
   padding: 6px;
   overflow-y: auto;
-  flex: 1;
-  max-height: 220px;
+  max-height: min(260px, 45vh);
 }
 
 .pool-search-select-option {
@@ -466,7 +473,7 @@ header {
   font-size: 0.9rem;
 }
 
-select, input[type="number"], input[type="text"], input[type="email"], input[type="password"], textarea {
+select, input[type="number"], input[type="text"], input[type="search"], input[type="email"], input[type="password"], textarea {
   padding: 10px 12px;
   border: 1px solid #b8d4e3;
   border-radius: 8px;

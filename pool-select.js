@@ -76,7 +76,22 @@ const PoolSelectUI = (function () {
     if (active) active.scrollIntoView({ block: 'nearest' });
   }
 
+  function getSelectEmptyText() {
+    return typeof t === 'function' ? t('pool.selectEmpty') : '—';
+  }
+
+  function getAddPromptText() {
+    return typeof t === 'function' ? t('pool.addPrompt') : '';
+  }
+
   function renderList(query) {
+    if (pools.length === 0) {
+      listEl.innerHTML = '';
+      emptyEl.textContent = getAddPromptText();
+      emptyEl.classList.remove('hidden');
+      return;
+    }
+
     const q = query.trim().toLowerCase();
     const filtered = q
       ? pools.filter(p => (p.name || '').toLowerCase().includes(q))
@@ -92,6 +107,10 @@ const PoolSelectUI = (function () {
   }
 
   function updateCurrentLabel() {
+    if (pools.length === 0) {
+      currentEl.textContent = getSelectEmptyText();
+      return;
+    }
     const pool = pools.find(p => p.id === activeId);
     currentEl.textContent = pool?.name || '—';
   }

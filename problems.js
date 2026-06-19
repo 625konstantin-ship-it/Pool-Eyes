@@ -80,17 +80,15 @@ async function loadUserData() {
 }
 
 function renderPoolSelect() {
-  const select = document.getElementById('poolSelect');
-  if (!select) return;
+  if (!document.getElementById('poolSelect')) return;
 
   isUpdatingUI = true;
-  select.innerHTML = poolList
-    .map(p => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`)
-    .join('');
 
-  if (activePoolId && poolList.some(p => p.id === activePoolId)) {
-    select.value = activePoolId;
+  if (!activePoolId || !poolList.some(p => p.id === activePoolId)) {
+    activePoolId = poolList.length > 0 ? poolList[0].id : null;
   }
+
+  PoolSelectUI.render(poolList, activePoolId);
 
   isUpdatingUI = false;
 }
@@ -185,12 +183,7 @@ async function setActivePool(poolId) {
   activePoolId = pool.id;
   saveActivePoolId();
 
-  const select = document.getElementById('poolSelect');
-  if (select && select.value !== pool.id) {
-    isUpdatingUI = true;
-    select.value = pool.id;
-    isUpdatingUI = false;
-  }
+  PoolSelectUI.setValue(pool.id);
 
   renderProblemsContent();
 }
@@ -211,9 +204,10 @@ function handleProblemsLanguageChange() {
 }
 
 function initEventListeners() {
-  document.getElementById('poolSelect')?.addEventListener('change', e => {
+  PoolSelectUI.init(poolId => {
     if (isUpdatingUI) return;
-    setActivePool(e.target.value);
+    if (!poolId) return;
+    setActivePool(poolId);
   });
 
   document.getElementById('connectAiBtn')?.addEventListener('click', () => {

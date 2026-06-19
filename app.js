@@ -82,7 +82,11 @@ function activePoolKey() {
 
 function saveActivePoolId() {
   const key = activePoolKey();
-  if (key && activePoolId) storageSet(key, activePoolId);
+  if (!key) return;
+  try {
+    if (activePoolId) localStorage.setItem(key, activePoolId);
+    else localStorage.removeItem(key);
+  } catch { /* ignore */ }
 }
 
 async function loadUserData() {
@@ -95,7 +99,7 @@ async function loadUserData() {
   selectedProblems = data.selectedProblems;
   activePoolId = storageGet(activePoolKey()) || null;
   normalizeStoredData();
-  await ensureDefaultPool();
+  syncActivePoolId();
 }
 
 async function saveActivePool() {
@@ -104,13 +108,11 @@ async function saveActivePool() {
   await dbUpsertPool(currentUser.id, pool, selectedProblems[pool.id] || []);
 }
 
-async function ensureDefaultPool() {
+function syncActivePoolId() {
   if (poolList.length === 0) {
-    const pool = await dbCreateDefaultPool(currentUser.id);
-    poolList.push(pool);
-    selectedProblems[pool.id] = [];
-    activePoolId = pool.id;
+    activePoolId = null;
     saveActivePoolId();
+    return;
   }
   if (!activePoolId || !poolList.find(p => p.id === activePoolId)) {
     activePoolId = poolList[0].id;
@@ -536,7 +538,11 @@ async function startApp() {
     showAppScreen();
     renderPoolSelect();
     await loadTelegramSettings();
-    await setActivePool(activePoolId);
+    if (poolList.length > 0) {
+      await setActivePool(activePoolId);
+    } else {
+      renderPoolContent();
+    }
   } catch (err) {
     await handleDbError(err, 'loadUserData');
   }
@@ -1520,13 +1526,16 @@ function renderPoolSelect() {
   } else if (poolList.length > 0) {
     activePoolId = poolList[0].id;
     saveActivePoolId();
+  } else {
+    activePoolId = null;
+    saveActivePoolId();
   }
 
   PoolSelectUI.render(poolList, activePoolId);
 
   isUpdatingUI = false;
   const deleteBtn = document.getElementById('deletePoolBtn');
-  if (deleteBtn) deleteBtn.disabled = poolList.length <= 1;
+  if (deleteBtn) deleteBtn.disabled = poolList.length === 0;
 }
 
 function syncVolumeSelect(volume) {
@@ -2195,8 +2204,9 @@ function initEventListeners() {
   });
 
   document.getElementById('deletePoolBtn').addEventListener('click', async () => {
-    if (poolList.length <= 1) return;
+    if (poolList.length === 0) return;
     const pool = getActivePool();
+    if (!pool) return;
     if (!confirm(t('pool.deleteConfirm', { name: pool.name }))) return;
 
     const deletedId = activePoolId;
@@ -2207,10 +2217,14 @@ function initEventListeners() {
       chemistryLog = chemistryLog.filter(c => c.poolId !== deletedId);
       poolPhotos = poolPhotos.filter(p => p.poolId !== deletedId);
       delete selectedProblems[deletedId];
-      activePoolId = poolList[0].id;
+      activePoolId = poolList.length > 0 ? poolList[0].id : null;
       saveActivePoolId();
       renderPoolSelect();
-      await setActivePool(activePoolId);
+      if (activePoolId) {
+        await setActivePool(activePoolId);
+      } else {
+        renderPoolContent();
+      }
       showMessage(document.getElementById('selectorMessage'), t('pool.deleted'));
     } catch (err) {
       await handleDbError(err, 'deletePool');
