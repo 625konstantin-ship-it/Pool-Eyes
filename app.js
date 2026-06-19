@@ -813,6 +813,7 @@ function renderTelegramRemindersUI() {
   const connectBtn = document.getElementById('connectTelegramBtn');
   const checkBtn = document.getElementById('checkTelegramBtn');
   const disconnectBtn = document.getElementById('disconnectTelegramBtn');
+  const testBtn = document.getElementById('sendTestTelegramBtn');
   const form = document.getElementById('telegramSettingsForm');
 
   if (statusEl) {
@@ -825,6 +826,7 @@ function renderTelegramRemindersUI() {
   connectBtn?.classList.toggle('hidden', connected);
   checkBtn?.classList.toggle('hidden', connected || !telegramConnectPending);
   disconnectBtn?.classList.toggle('hidden', !connected);
+  testBtn?.classList.toggle('hidden', !connected);
   form?.classList.toggle('hidden', !connected);
   document.getElementById('telegramSettingsLocked')?.classList.toggle('hidden', connected);
 
@@ -926,6 +928,28 @@ async function handleDisconnectTelegram() {
     showTelegramMessage(t('telegram.disconnected'), 'success');
   } catch (err) {
     showTelegramMessage(err.message || t('auth.error.save'), 'error');
+  }
+}
+
+async function handleSendTestTelegram() {
+  if (!currentUser || !telegramSettings?.telegramChatId) return;
+
+  const btn = document.getElementById('sendTestTelegramBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = t('telegram.sendingTest');
+  }
+
+  try {
+    await dbSendTestTelegramReminder();
+    showTelegramMessage(t('telegram.testSent'), 'success');
+  } catch (err) {
+    showTelegramMessage(err.message || t('telegram.testFailed'), 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = t('telegram.sendTest');
+    }
   }
 }
 
@@ -1031,22 +1055,37 @@ function syncPoolReminderUI(pool) {
 
 async function handleSavePoolReminders() {
   const pool = getActivePool();
-  if (!pool || !currentUser || !telegramSettings?.telegramChatId) return;
+  const msgEl = document.getElementById('poolReminderMessage');
+
+  if (!pool || !currentUser) {
+    if (msgEl) showMessage(msgEl, t('pool.noHint'), 'warn');
+    return;
+  }
 
   const enabled = document.getElementById('poolRemindersEnabled').checked;
   const reminderIntervalDays = parseInt(document.getElementById('poolReminderInterval').value, 10);
-  const msgEl = document.getElementById('poolReminderMessage');
 
   pool.remindersEnabled = enabled;
   pool.reminderIntervalDays = reminderIntervalDays;
 
   try {
-    await dbUpsertPool(currentUser.id, pool, selectedProblems[pool.id] || []);
+    await dbUpdatePoolReminders(pool.id, enabled, reminderIntervalDays);
     syncPoolReminderUI(pool);
     renderTelegramRemindersUI();
-    if (msgEl) showMessage(msgEl, enabled ? t('telegram.remindersOn') : t('telegram.remindersOff'), 'success');
+    if (msgEl) {
+      showMessage(
+        msgEl,
+        enabled
+          ? t('telegram.remindersOnNamed', { name: pool.name, days: reminderIntervalDays })
+          : t('telegram.remindersOffNamed', { name: pool.name }),
+        'success'
+      );
+    }
   } catch (err) {
-    if (msgEl) showMessage(msgEl, err.message || t('auth.error.save'), 'error');
+    const hint = /reminders_enabled|reminder_interval|schema cache/i.test(err.message || '')
+      ? t('telegram.poolRemindersSqlHint')
+      : (err.message || t('auth.error.save'));
+    if (msgEl) showMessage(msgEl, hint, 'error');
     await handleDbError(err, 'savePoolReminders');
   }
 }
@@ -1057,9 +1096,16 @@ function initTelegramReminders() {
   document.getElementById('connectTelegramBtn')?.addEventListener('click', handleConnectTelegram);
   document.getElementById('checkTelegramBtn')?.addEventListener('click', handleCheckTelegram);
   document.getElementById('disconnectTelegramBtn')?.addEventListener('click', handleDisconnectTelegram);
+  document.getElementById('sendTestTelegramBtn')?.addEventListener('click', handleSendTestTelegram);
   document.getElementById('telegramSettingsForm')?.addEventListener('submit', handleSaveTelegramSettings);
   document.getElementById('poolRemindersEnabled')?.addEventListener('change', e => {
     document.getElementById('poolReminderOptions')?.classList.toggle('hidden', !e.target.checked);
+    handleSavePoolReminders();
+  });
+  document.getElementById('poolReminderInterval')?.addEventListener('change', () => {
+    if (document.getElementById('poolRemindersEnabled')?.checked) {
+      handleSavePoolReminders();
+    }
   });
   document.getElementById('savePoolRemindersBtn')?.addEventListener('click', handleSavePoolReminders);
   renderTelegramRemindersUI();

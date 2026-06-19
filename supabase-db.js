@@ -171,6 +171,14 @@ async function dbLoadUserData(userId) {
   };
 }
 
+async function dbUpdatePoolReminders(poolId, enabled, intervalDays) {
+  const { error } = await sb.from('pools').update({
+    reminders_enabled: !!enabled,
+    reminder_interval_days: Number(intervalDays) || 7
+  }).eq('id', poolId);
+  if (error) throw error;
+}
+
 async function dbUpsertPool(userId, pool, problemIds) {
   const { error } = await sb.from('pools').upsert({
     id: pool.id,
@@ -377,4 +385,11 @@ async function dbCreateTelegramLinkToken(userId) {
 
   if (error) throw error;
   return { token, settings: mapTelegramSettings(data) };
+}
+
+async function dbSendTestTelegramReminder() {
+  const { data, error } = await sb.functions.invoke('send-test-reminder', { body: {} });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
 }
