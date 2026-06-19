@@ -300,6 +300,13 @@ const I18N_ES = {
   'telegram.remindersOn': 'Recordatorios de la piscina activados.',
   'telegram.remindersOff': 'Recordatorios de la piscina desactivados.',
   'telegram.loadFailed': 'No se pudieron cargar los ajustes de Telegram. Ejecute supabase/telegram.sql',
+  'telegram.sendTest': 'Enviar mensaje de prueba',
+  'telegram.sendingTest': 'Enviando…',
+  'telegram.testSent': 'Mensaje de prueba enviado a Telegram.',
+  'telegram.testFailed': 'No se pudo enviar el mensaje de prueba.',
+  'telegram.connectFirst': 'Primero conecte Telegram y luego guarde los recordatorios.',
+  'telegram.poolRemindersSqlHint': 'Falta SQL de recordatorios. Supabase → SQL Editor → supabase/pool-reminders.sql',
+  'telegram.remindersSeparateHint': 'Separado de la hora del mensaje. La casilla se guarda automáticamente.',
 
   'problems.title': 'Problemas del agua',
   'problems.subtitle': 'Seleccione lo que observa — obtenga recomendaciones para solucionarlo',

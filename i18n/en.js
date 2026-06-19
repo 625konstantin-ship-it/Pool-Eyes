@@ -300,6 +300,13 @@ const I18N_EN = {
   'telegram.remindersOn': 'Pool reminders enabled.',
   'telegram.remindersOff': 'Pool reminders disabled.',
   'telegram.loadFailed': 'Failed to load Telegram settings. Run supabase/telegram.sql',
+  'telegram.sendTest': 'Send test message',
+  'telegram.sendingTest': 'Sending…',
+  'telegram.testSent': 'Test message sent to Telegram.',
+  'telegram.testFailed': 'Failed to send test message.',
+  'telegram.connectFirst': 'Connect Telegram first, then save reminders.',
+  'telegram.poolRemindersSqlHint': 'Pool reminders SQL not applied. Supabase → SQL Editor → supabase/pool-reminders.sql',
+  'telegram.remindersSeparateHint': 'Separate from message time above. Checkbox saves automatically.',
 
   'problems.title': 'Water problems',
   'problems.subtitle': 'Select what you observe — get recommendations to fix it',
