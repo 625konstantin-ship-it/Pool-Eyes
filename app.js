@@ -2552,7 +2552,7 @@ function registerServiceWorker() {
   const checkForSwUpdate = () => swRegistration?.update().catch(() => {});
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=32')
+    navigator.serviceWorker.register('./sw.js?v=33')
       .then(reg => {
         swRegistration = reg;
         if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });

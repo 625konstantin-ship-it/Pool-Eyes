@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest?v=3">
   <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=2">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=2">
-  <link rel="stylesheet" href="styles.css?v=35">
+  <link rel="stylesheet" href="styles.css?v=36">
 </head>
 <body data-page-title-key="problems.pageTitle">
   <div id="problemsLoading" class="problems-loading">
@@ -21,16 +21,23 @@
   <div id="problemsApp" class="container hidden">
     <header class="app-header problems-page-header">
       <div class="header-row">
-        <div class="lang-switcher header-lang-switcher" role="group" aria-label="Language">
-          <button type="button" class="lang-btn active" data-lang="ru" aria-pressed="true">RU</button>
-          <button type="button" class="lang-btn" data-lang="en" aria-pressed="false">EN</button>
-          <button type="button" class="lang-btn" data-lang="es" aria-pressed="false">ES</button>
+        <div class="lang-dropdown header-lang-switcher">
+          <button type="button" class="lang-dropdown-btn" aria-expanded="false" aria-haspopup="listbox" data-i18n-aria-label="lang.label">
+            <span class="lang-dropdown-current">RU</span>
+            <svg class="lang-dropdown-chevron" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </button>
+          <div class="lang-dropdown-menu hidden" role="listbox">
+            <button type="button" class="lang-option active" data-lang="ru" role="option" aria-selected="true"><span data-i18n="lang.ruName">Русский</span></button>
+            <button type="button" class="lang-option" data-lang="en" role="option" aria-selected="false"><span data-i18n="lang.enName">English</span></button>
+            <button type="button" class="lang-option" data-lang="es" role="option" aria-selected="false"><span data-i18n="lang.esName">Español</span></button>
+          </div>
         </div>
         <div class="header-title">
           <a href="index.html" class="back-link" data-i18n="problems.back">← Назад</a>
           <h1 data-i18n="problems.title">Проблемы с водой</h1>
           <p class="subtitle" data-i18n="problems.subtitle">Выберите, что наблюдаете — получите рекомендации по устранению</p>
         </div>
+        <div class="header-side-spacer" aria-hidden="true"></div>
       </div>
     </header>
 
