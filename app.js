@@ -438,19 +438,18 @@ async function handleRegister(e) {
       return;
     }
 
-    if (result.needsConfirmation) {
-      showAuthMessage(
-        'registerSuccess',
-        t('auth.registerSuccess'),
-        'success'
-      );
+    if (result.needsLogin) {
+      showAuthMessage('registerSuccess', t('auth.registerSuccess'), 'success');
       switchAuthTab('login');
+      const loginEmail = document.getElementById('loginEmail');
+      if (loginEmail) loginEmail.value = email;
+      form.reset();
       return;
     }
 
     currentUser = result.user;
     await startApp();
-    showMessage(document.getElementById('selectorMessage'), t('auth.registerSuccessInstant'));
+    showMessage(document.getElementById('selectorMessage'), t('auth.registerWelcome'));
   } catch (err) {
     showAuthMessage('registerError', translateAuthError(err.message || t('auth.error.register')));
   } finally {

@@ -88,14 +88,19 @@ async function authSignUp(email, password, displayName) {
     }
   });
   if (error) return { ok: false, error: translateAuthError(error.message) };
-  if (!data.session) {
-    return {
-      ok: true,
-      needsConfirmation: true,
-      message: t('auth.checkEmailConfirm')
-    };
+  if (data.session) {
+    return { ok: true, user: mapUser(data.session), session: data.session };
   }
-  return { ok: true, user: mapUser(data.session), session: data.session };
+
+  const login = await sb.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password
+  });
+  if (!login.error && login.data.session) {
+    return { ok: true, user: mapUser(login.data.session), session: login.data.session };
+  }
+
+  return { ok: true, needsLogin: true };
 }
 
 async function authSignIn(email, password) {
