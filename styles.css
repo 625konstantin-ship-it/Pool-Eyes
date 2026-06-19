@@ -968,6 +968,26 @@ td.comment-cell {
   margin: 0 0 12px;
 }
 
+.telegram-account-hint {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: #f8fcff;
+  border-radius: 8px;
+  border: 1px solid #d8eaf3;
+}
+
+.telegram-bot-link {
+  display: block;
+  text-align: center;
+  font-weight: 600;
+  color: #0d4a6b;
+  word-break: break-all;
+}
+
+.telegram-bot-link.hidden {
+  display: none;
+}
+
 .telegram-connect-hint {
   margin: 0;
 }

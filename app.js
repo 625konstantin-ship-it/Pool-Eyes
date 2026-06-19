@@ -755,7 +755,9 @@ function populateReminderHourSelect() {
 
 function updateTelegramConnectButton() {
   const btn = document.getElementById('telegramConnectBtn');
+  const switchBtn = document.getElementById('telegramSwitchBtn');
   const hint = document.getElementById('telegramConnectHint');
+  const botLink = document.getElementById('telegramBotLink');
   const form = document.getElementById('telegramReminderForm');
   const connected = !!telegramSettings?.telegramChatId;
 
@@ -764,19 +766,52 @@ function updateTelegramConnectButton() {
   if (connected) {
     btn.textContent = t('telegram.disconnectBot');
     btn.className = 'btn btn-danger btn-full';
+    switchBtn?.classList.remove('hidden');
     hint?.classList.add('hidden');
+    botLink?.classList.add('hidden');
     form?.classList.remove('hidden');
   } else if (telegramConnectPending) {
     btn.textContent = t('telegram.checkConnection');
     btn.className = 'btn btn-secondary btn-full';
+    switchBtn?.classList.add('hidden');
     hint?.classList.remove('hidden');
     form?.classList.add('hidden');
   } else {
     btn.textContent = t('telegram.connectBot');
     btn.className = 'btn btn-primary btn-full';
+    switchBtn?.classList.add('hidden');
     hint?.classList.add('hidden');
+    botLink?.classList.add('hidden');
     form?.classList.add('hidden');
   }
+}
+
+function openTelegramBot(url) {
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  if (isMobile) {
+    window.location.href = url;
+  } else {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
+
+async function beginTelegramConnect() {
+  if (!currentUser) return;
+  const { token } = await dbCreateTelegramLinkToken(currentUser.id);
+  const url = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${token}`;
+  telegramConnectPending = true;
+  renderTelegramRemindersUI();
+
+  const botLink = document.getElementById('telegramBotLink');
+  if (botLink) {
+    botLink.href = url;
+    botLink.textContent = t('telegram.openBotLink');
+    botLink.classList.remove('hidden');
+  }
+
+  openTelegramBot(url);
+  showTelegramMessage(t('telegram.connectStepsShort'), 'info');
+  startTelegramConnectPoll();
 }
 
 function showTelegramMessage(text, type = 'success') {
@@ -847,15 +882,19 @@ async function loadTelegramSettings() {
 }
 
 async function handleConnectTelegram() {
-  if (!currentUser) return;
   try {
-    const { token } = await dbCreateTelegramLinkToken(currentUser.id);
-    const url = `https://t.me/${TELEGRAM_BOT_USERNAME}?start=${token}`;
-    telegramConnectPending = true;
-    renderTelegramRemindersUI();
-    window.open(url, '_blank', 'noopener,noreferrer');
-    showTelegramMessage(t('telegram.connectStepsShort'), 'info');
-    startTelegramConnectPoll();
+    await beginTelegramConnect();
+  } catch (err) {
+    showTelegramMessage(err.message || t('auth.error.send'), 'error');
+  }
+}
+
+async function handleSwitchTelegram() {
+  if (!currentUser) return;
+  if (!confirm(t('telegram.switchConfirm'))) return;
+  try {
+    await beginTelegramConnect();
+    showTelegramMessage(t('telegram.switchSteps'), 'info');
   } catch (err) {
     showTelegramMessage(err.message || t('auth.error.send'), 'error');
   }
@@ -911,14 +950,10 @@ async function handleCheckTelegram() {
 async function handleDisconnectTelegram() {
   if (!currentUser || !confirm(t('telegram.disconnectConfirm'))) return;
   try {
-    const pool = getActivePool();
-    if (pool) {
-      pool.remindersEnabled = false;
-      await dbUpdatePoolReminders(pool.id, false, pool.reminderIntervalDays || 7);
-    }
+    stopTelegramConnectPoll();
+    telegramConnectPending = false;
     telegramSettings = await dbSaveTelegramSettings(currentUser.id, {
       telegramChatId: null,
-      remindersEnabled: false,
       clearLinkToken: true
     });
     renderTelegramRemindersUI();
@@ -1061,6 +1096,7 @@ function syncTelegramReminderForm(pool) {
 function initTelegramReminders() {
   populateReminderHourSelect();
   document.getElementById('telegramConnectBtn')?.addEventListener('click', handleTelegramConnectBtn);
+  document.getElementById('telegramSwitchBtn')?.addEventListener('click', handleSwitchTelegram);
   document.getElementById('telegramReminderForm')?.addEventListener('submit', handleSaveTelegramReminder);
   document.getElementById('poolReminderInterval')?.addEventListener('change', e => {
     document.getElementById('customReminderDaysWrap')?.classList.toggle('hidden', e.target.value !== 'custom');
