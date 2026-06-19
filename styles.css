@@ -35,6 +35,8 @@ header {
 
 .app-header {
   overflow: visible;
+  position: relative;
+  z-index: 50;
 }
 
 .header-row {
@@ -105,7 +107,7 @@ header {
   grid-column: 3;
   position: relative;
   justify-self: end;
-  z-index: 20;
+  z-index: 1;
 }
 
 .user-menu-btn {
@@ -149,6 +151,7 @@ header {
   box-shadow: 0 8px 24px rgba(13, 74, 107, 0.18);
   padding: 6px 0;
   overflow: hidden;
+  z-index: 1;
 }
 
 .user-menu-email {
