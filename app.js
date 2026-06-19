@@ -1075,9 +1075,7 @@ async function handleSavePoolReminders() {
     if (msgEl) {
       showMessage(
         msgEl,
-        enabled
-          ? t('telegram.remindersOnNamed', { name: pool.name, days: reminderIntervalDays })
-          : t('telegram.remindersOffNamed', { name: pool.name }),
+        enabled ? t('telegram.remindersOn') : t('telegram.remindersOff'),
         'success'
       );
     }
