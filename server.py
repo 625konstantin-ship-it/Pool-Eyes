@@ -91,7 +91,7 @@ def send_reset_email(to_email, login, code):
 
     body = (
         f'Здравствуйте!\n\n'
-        f'Код для сброса пароля в «Учёт параметров бассейна»:\n\n'
+        f'Код для сброса пароля в «Pool Eyes»:\n\n'
         f'  {code}\n\n'
         f'Логин: {login}\n'
         f'Код действует 15 минут.\n\n'
@@ -136,6 +136,16 @@ def read_json_body(handler):
 class PoolHandler(SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):
         print(f'[{self.log_date_time_string()}] {fmt % args}')
+
+    def guess_type(self, path):
+        content_type = super().guess_type(path)
+        if path.endswith('.js'):
+            return 'application/javascript; charset=utf-8'
+        if path.endswith('.html'):
+            return 'text/html; charset=utf-8'
+        if path.endswith('.css'):
+            return 'text/css; charset=utf-8'
+        return content_type
 
     def end_headers(self):
         path = urlparse(self.path).path
