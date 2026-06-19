@@ -79,25 +79,30 @@ function mapPhotoRow(row) {
 
 async function authSignUp(email, password, displayName) {
   if (!sb) return { ok: false, error: t('auth.error.supabaseDisconnected') };
+  const normalizedEmail = email.trim().toLowerCase();
   const { data, error } = await sb.auth.signUp({
-    email: email.trim().toLowerCase(),
+    email: normalizedEmail,
     password,
     options: {
-      data: { display_name: displayName?.trim() || email.trim() },
-      emailRedirectTo: getAuthRedirectUrl()
+      data: { display_name: displayName?.trim() || normalizedEmail }
     }
   });
-  if (error) return { ok: false, error: translateAuthError(error.message) };
-  if (data.session) {
-    return { ok: true, user: mapUser(data.session), session: data.session };
+  if (error) {
+    const message = error.message || '';
+    return {
+      ok: false,
+      error: translateAuthError(message),
+      rateLimited: /rate limit|too many/i.test(message),
+      alreadyRegistered: /already registered/i.test(message)
+    };
   }
 
-  const login = await sb.auth.signInWithPassword({
-    email: email.trim().toLowerCase(),
-    password
-  });
-  if (!login.error && login.data.session) {
-    return { ok: true, user: mapUser(login.data.session), session: login.data.session };
+  if (data.user?.identities?.length === 0) {
+    return { ok: false, error: t('auth.error.alreadyRegistered'), alreadyRegistered: true };
+  }
+
+  if (data.session) {
+    return { ok: true, user: mapUser(data.session), session: data.session };
   }
 
   return { ok: true, needsLogin: true };
@@ -109,7 +114,14 @@ async function authSignIn(email, password) {
     email: email.trim().toLowerCase(),
     password
   });
-  if (error) return { ok: false, error: translateAuthError(error.message) };
+  if (error) {
+    const message = error.message || '';
+    return {
+      ok: false,
+      error: translateAuthError(message),
+      rateLimited: /rate limit|too many/i.test(message)
+    };
+  }
   return { ok: true, user: mapUser(data.session), session: data.session };
 }
 

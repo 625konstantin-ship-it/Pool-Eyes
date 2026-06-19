@@ -43,6 +43,8 @@ let mapInitRetries = 0;
 let measurementHistoryOpen = false;
 let chemistryHistoryOpen = false;
 let pendingPasswordRecovery = false;
+let authSubmitLock = false;
+let authCooldownUntil = 0;
 let telegramSettings = null;
 let telegramConnectPending = false;
 let telegramPollTimer = null;
@@ -383,8 +385,48 @@ function setFormLoading(form, loading, loadingText = null) {
     btn.disabled = true;
   } else {
     btn.textContent = btn.dataset.originalText || btn.textContent;
-    btn.disabled = false;
+    btn.disabled = getAuthCooldownRemainingMs() > 0;
   }
+}
+
+function getAuthCooldownRemainingMs() {
+  return Math.max(0, authCooldownUntil - Date.now());
+}
+
+function startAuthCooldown(seconds) {
+  authCooldownUntil = Date.now() + seconds * 1000;
+}
+
+function formatAuthWaitSeconds(ms) {
+  return Math.max(1, Math.ceil(ms / 1000));
+}
+
+function isAuthRateLimitMessage(msg) {
+  const lower = String(msg || '').toLowerCase();
+  return lower.includes('rate limit') || lower.includes('too many');
+}
+
+function beginAuthSubmit(form, loadingText) {
+  const waitMs = getAuthCooldownRemainingMs();
+  if (authSubmitLock || waitMs > 0) {
+    return { blocked: true, waitMs };
+  }
+  authSubmitLock = true;
+  setFormLoading(form, true, loadingText);
+  return { blocked: false };
+}
+
+function endAuthSubmit(form, { rateLimited = false, skipCooldown = false } = {}) {
+  authSubmitLock = false;
+  if (rateLimited) startAuthCooldown(60);
+  else if (!skipCooldown) startAuthCooldown(3);
+  setFormLoading(form, false);
+}
+
+function suggestLoginAfterRegister(email) {
+  switchAuthTab('login');
+  const loginEmail = document.getElementById('loginEmail');
+  if (loginEmail && email) loginEmail.value = email;
 }
 
 async function handleLogin(e) {
@@ -394,19 +436,26 @@ async function handleLogin(e) {
   const email = document.getElementById('loginEmail').value;
   const password = document.getElementById('loginPassword').value;
 
-  setFormLoading(form, true, t('auth.loggingIn'));
+  const submit = beginAuthSubmit(form, t('auth.loggingIn'));
+  if (submit.blocked) {
+    showAuthMessage('loginError', t('auth.error.waitCooldown', { seconds: formatAuthWaitSeconds(submit.waitMs) }));
+    return;
+  }
+
   try {
     const result = await authSignIn(email, password);
     if (!result.ok) {
       showAuthMessage('loginError', result.error);
+      endAuthSubmit(form, { rateLimited: result.rateLimited || isAuthRateLimitMessage(result.error) });
       return;
     }
     currentUser = result.user;
+    endAuthSubmit(form, { skipCooldown: true });
     await startApp();
   } catch (err) {
-    showAuthMessage('loginError', translateAuthError(err.message || t('auth.error.login')));
-  } finally {
-    setFormLoading(form, false);
+    const message = translateAuthError(err.message || t('auth.error.login'));
+    showAuthMessage('loginError', message);
+    endAuthSubmit(form, { rateLimited: isAuthRateLimitMessage(message) });
   }
 }
 
@@ -430,30 +479,37 @@ async function handleRegister(e) {
     return;
   }
 
-  setFormLoading(form, true, t('auth.registering'));
+  const submit = beginAuthSubmit(form, t('auth.registering'));
+  if (submit.blocked) {
+    showAuthMessage('registerError', t('auth.error.waitCooldown', { seconds: formatAuthWaitSeconds(submit.waitMs) }));
+    return;
+  }
+
   try {
     const result = await authSignUp(email, password, displayName);
     if (!result.ok) {
       showAuthMessage('registerError', result.error);
+      if (result.alreadyRegistered) suggestLoginAfterRegister(email);
+      endAuthSubmit(form, { rateLimited: result.rateLimited || isAuthRateLimitMessage(result.error) });
       return;
     }
 
     if (result.needsLogin) {
       showAuthMessage('registerSuccess', t('auth.registerSuccess'), 'success');
-      switchAuthTab('login');
-      const loginEmail = document.getElementById('loginEmail');
-      if (loginEmail) loginEmail.value = email;
+      suggestLoginAfterRegister(email);
       form.reset();
+      endAuthSubmit(form, { skipCooldown: true });
       return;
     }
 
     currentUser = result.user;
+    endAuthSubmit(form, { skipCooldown: true });
     await startApp();
     showMessage(document.getElementById('selectorMessage'), t('auth.registerWelcome'));
   } catch (err) {
-    showAuthMessage('registerError', translateAuthError(err.message || t('auth.error.register')));
-  } finally {
-    setFormLoading(form, false);
+    const message = translateAuthError(err.message || t('auth.error.register'));
+    showAuthMessage('registerError', message);
+    endAuthSubmit(form, { rateLimited: isAuthRateLimitMessage(message) });
   }
 }
 
@@ -464,18 +520,25 @@ async function handleForgot(e) {
   const form = e.target;
   const email = document.getElementById('forgotEmail').value.trim();
 
-  setFormLoading(form, true, t('auth.sending'));
+  const submit = beginAuthSubmit(form, t('auth.sending'));
+  if (submit.blocked) {
+    showAuthMessage('forgotError', t('auth.error.waitCooldown', { seconds: formatAuthWaitSeconds(submit.waitMs) }));
+    return;
+  }
+
   try {
     const result = await authResetPassword(email);
     if (!result.ok) {
       showAuthMessage('forgotError', result.error);
+      endAuthSubmit(form, { rateLimited: isAuthRateLimitMessage(result.error) });
       return;
     }
     showAuthMessage('forgotSuccess', result.message, 'success');
+    endAuthSubmit(form, { skipCooldown: true });
   } catch (err) {
-    showAuthMessage('forgotError', translateAuthError(err.message || t('auth.error.send')));
-  } finally {
-    setFormLoading(form, false);
+    const message = translateAuthError(err.message || t('auth.error.send'));
+    showAuthMessage('forgotError', message);
+    endAuthSubmit(form, { rateLimited: isAuthRateLimitMessage(message) });
   }
 }
 
