@@ -1,22 +1,22 @@
-const CACHE = 'pool-eyes-v33';
+const CACHE = 'pool-eyes-v34';
 
 const SHELL = [
   './',
   './index.html',
   './problems.html',
-  './styles.css',
-  './app.js',
+  './styles.css?v=37',
+  './app.js?v=35',
   './problems.js',
   './pool-problems.js',
   './supabase-db.js',
   './config.js',
-  './i18n/i18n.js',
-  './i18n/ru.js',
-  './i18n/en.js',
-  './i18n/es.js',
-  './i18n/pool-problems-ru.js',
-  './i18n/pool-problems-en.js',
-  './i18n/pool-problems-es.js',
+  './i18n/i18n.js?v=4',
+  './i18n/ru.js?v=4',
+  './i18n/en.js?v=4',
+  './i18n/es.js?v=4',
+  './i18n/pool-problems-ru.js?v=4',
+  './i18n/pool-problems-en.js?v=4',
+  './i18n/pool-problems-es.js?v=4',
   './manifest.webmanifest',
   './logo.svg',
   './icons/icon-192.png',
@@ -116,9 +116,19 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
-  if (url.pathname.includes('/i18n/')) {
+  if (url.pathname.includes('/i18n/') || url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
     event.respondWith(
-      fetch(event.request, { cache: 'no-store' }).catch(() => matchCached(event.request))
+      fetch(event.request, { cache: 'no-store' })
+        .then(response => {
+          if (response.ok) {
+            void openCache().then(async cache => {
+              await cache.put(event.request, response.clone());
+              await cache.put(stripSearch(event.request.url), response.clone());
+            });
+          }
+          return response;
+        })
+        .catch(() => matchCached(event.request))
     );
     return;
   }
