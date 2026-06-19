@@ -964,6 +964,22 @@ td.comment-cell {
   gap: 14px;
 }
 
+.telegram-pool-hint {
+  margin: 0 0 12px;
+}
+
+.telegram-connect-hint {
+  margin: 0;
+}
+
+.telegram-reminder-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e0eef4;
+}
+
 .telegram-status {
   padding: 10px 12px;
   border-radius: 8px;

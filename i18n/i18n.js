@@ -1,6 +1,6 @@
 const LANG_STORAGE_KEY = 'poolAppLang';
 const SUPPORTED_LANGS = ['ru', 'en', 'es'];
-const I18N_SCRIPT_VERSION = '5';
+const I18N_SCRIPT_VERSION = '6';
 
 const LANG_SCRIPT_BUNDLES = {
   ru: [`i18n/ru.js?v=${I18N_SCRIPT_VERSION}`, `i18n/pool-problems-ru.js?v=${I18N_SCRIPT_VERSION}`],
